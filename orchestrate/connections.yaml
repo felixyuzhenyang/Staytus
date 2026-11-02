@@ -1,0 +1,13 @@
+# Template only; no credentials in source control.
+spec_version: v1
+kind: connection
+app_id: staytus_backend
+environments:
+  draft:
+    kind: key_value
+    type: team
+  live:
+    kind: key_value
+    type: team
+# Configure backend_url (HTTPS) and tool_key in the actual tenant connection.
+# Do not store staytus_context here: it is per-user, short-lived runtime context.

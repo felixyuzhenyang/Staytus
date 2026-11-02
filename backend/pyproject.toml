@@ -1,0 +1,28 @@
+[project]
+name = "staytus-backend"
+version = "0.1.0"
+description = "Staytus application API, deterministic planning engine, and agent tool gateway"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1", "uvicorn[standard]>=0.34,<1",
+  "sqlalchemy>=2.0,<3", "pydantic-settings>=2.7,<3",
+  "httpx>=0.28,<1", "psycopg[binary]>=3.2,<4", "pgvector>=0.3,<1", "cryptography>=44,<51", "pyyaml>=6,<7"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "ruff>=0.9,<1", "openapi-spec-validator>=0.7,<1"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+

@@ -1,0 +1,44 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+!**/.env.example
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.db
+*.db-shm
+*.db-wal
+node_modules/
+.next/
+out/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+output/playwright/
+output/verification/
+.playwright-cli/
+build/
+.local/
+*.log
+*.pem
+*.key
+credentials/
+
+# Keep detailed IBM Bob conversations and task transcripts local. The final
+# repository may contain only the course-required consumption-summary evidence.
+bob_sessions/**
+!bob_sessions/README.md
+!bob_sessions/consumption_summaries/
+!bob_sessions/consumption_summaries/**
+
+# Local coding-agent instructions and superseded development artifacts.
+/AGENTS.md
+/frontend/AGENTS.md
+/docs/bob-usage-log.md
+/docs/reviews/IBM_BOB_CODE_REVIEW_2026-11-01.md
+/docs/archive/VERIFICATION_INITIAL_2026-11-01.md
+/evals/demo_scenarios.json

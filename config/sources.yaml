@@ -1,0 +1,70 @@
+version: 1
+default_fetch_enabled: true
+review_required: true
+user_agent: Staytus/0.2
+respect_robots: true
+# Read-only source snapshots are informational. Fetching does not certify that a rule is effective.
+sources:
+  - id: penn-isss
+    title: Penn ISSS
+    authority: university
+    school_id: penn
+    url: https://global.upenn.edu/isss/
+    allowed_hosts: [global.upenn.edu]
+    fetch_enabled: true
+    terms_review: public_read_only_robots_required
+    poll_interval_minutes: 360
+    staleness_days: 2
+    categories: [F-1, J-1 student, J-1 scholar]
+  - id: penn-travel
+    title: Penn ISSS Travel Information
+    authority: university
+    school_id: penn
+    url: https://global.upenn.edu/isss/home/immigration/travel/
+    allowed_hosts: [global.upenn.edu]
+    fetch_enabled: true
+    terms_review: public_read_only_robots_required
+    poll_interval_minutes: 360
+    staleness_days: 2
+    categories: [F-1, J-1 student, J-1 scholar]
+  - id: uscis-students
+    title: USCIS Students and Exchange Visitors
+    authority: government
+    url: https://www.uscis.gov/working-in-the-united-states/students-and-exchange-visitors
+    allowed_hosts: [www.uscis.gov]
+    fetch_enabled: true
+    terms_review: public_read_only_robots_required
+    poll_interval_minutes: 360
+    staleness_days: 2
+    categories: [F-1, J-1 student, J-1 scholar]
+  - id: dhs-study
+    title: DHS Study in the States
+    authority: government
+    url: https://studyinthestates.dhs.gov/
+    allowed_hosts: [studyinthestates.dhs.gov]
+    fetch_enabled: true
+    terms_review: public_read_only_robots_required
+    poll_interval_minutes: 360
+    staleness_days: 2
+    categories: [F-1]
+  - id: dos-bridgeusa
+    title: Department of State BridgeUSA Current Participants
+    authority: government
+    url: https://j1visa.state.gov/participants/current/
+    allowed_hosts: [j1visa.state.gov]
+    fetch_enabled: true
+    terms_review: public_read_only_robots_required
+    poll_interval_minutes: 360
+    staleness_days: 2
+    categories: [J-1 student, J-1 scholar]
+  - id: penn-opt
+    title: Penn ISSS Optional Practical Training
+    authority: university
+    school_id: penn
+    url: https://global.upenn.edu/isss/opt/
+    allowed_hosts: [global.upenn.edu]
+    fetch_enabled: true
+    terms_review: public_read_only_robots_required
+    poll_interval_minutes: 360
+    staleness_days: 2
+    categories: [F-1]
