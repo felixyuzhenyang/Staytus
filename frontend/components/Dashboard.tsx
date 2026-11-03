@@ -2,6 +2,7 @@ import { ArrowRight, Bell, CalendarDays, Check, ChevronRight, ExternalLink, Shie
 import type { DashboardData, Deadline, Profile } from "@/lib/types";
 import { date, label } from "@/lib/types";
 import { Badge, Empty, IconButton } from "./ui";
+import WorkflowGuidancePanel from "./WorkflowGuidancePanel";
 
 function DeadlineCard({ deadline, index, onAsk, onRemind }: { deadline: Deadline; index: number; onAsk: () => void; onRemind: () => void }) {
   const due = deadline.date, parsed = due ? new Date(`${due.slice(0, 10)}T12:00:00`) : null;
@@ -20,6 +21,6 @@ export default function Dashboard({ data, profile, onAsk, onEditProfile, onUpdat
     {!data.deadlines.length && <Empty icon={CalendarDays} title="No school-specific timeline yet" text="Your profile is saved. School-specific planning support will appear when an adapter is available." />}
     <div className="overview-lower"><section className="panel"><div className="section-heading inside"><h2>Your next steps</h2><Badge>Personalized</Badge></div>{data.tasks.map((task, index) => <div className="task-row" key={task.id || index}><span className="task-check">{index + 1}</span><div><strong>{task.title}</strong><small>{task.due_date ? `Plan for ${date(task.due_date)}` : "Review your school's current instructions"}</small></div><Badge>{label(task.status || "planned")}</Badge></div>)}{!data.tasks.length && <Empty icon={Check} title="Nothing to prepare yet" text="Your next steps will appear here as your plans develop." />}</section>
       <section className="panel updates-preview"><div className="section-heading inside"><h2>Worth a look</h2><Bell size={17} /></div>{data.notifications.length ? data.notifications.slice(0, 2).map(notice => <div className="notice-preview" key={notice.id}><Badge tone="amber">Source update</Badge><h3>{notice.title || "A change to review"}</h3><p>{notice.message}</p></div>) : <div className="notice-preview"><Badge tone="blue">Sources in context</Badge><h3>Changes deserve context.</h3><p>Your updates will show what was captured and whether it has been reviewed.</p></div>}<button className="text-button" onClick={onUpdates}>View policy updates <ArrowRight size={15} /></button></section>
-    </div><div className="bottom-note"><ShieldCheck size={16} />Planning reminders are not official filing deadlines. Your adviser can help confirm individual requirements.</div>
+    </div><WorkflowGuidancePanel guidance={data.workflow_guidance} /><div className="bottom-note"><ShieldCheck size={16} />Planning reminders are not official filing deadlines. Your adviser can help confirm individual requirements.</div>
   </>;
 }

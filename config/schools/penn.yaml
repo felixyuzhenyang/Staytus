@@ -7,10 +7,12 @@ contact_url: https://global.upenn.edu/isss/faqs/
 travel_url: https://global.upenn.edu/isss/home/immigration/travel/
 portal_url: https://ipenn.upenn.edu/
 portal_integration: handoff_only
-supported_categories: [F-1, J-1 student, J-1 scholar]
+supported_categories:
+- F-1
+- J-1 student
+- J-1 scholar
 demo_only: false
 planning_defaults:
-  # Product planning preferences, NOT Penn/federal filing or eligibility rules.
   program_extension_prepare_days: 60
   document_review_days: 30
   travel_prepare_days: 30
@@ -18,3 +20,30 @@ workflow_notes:
   F-1: Review I-20 and consult the assigned ISSS adviser about extension requirements.
   J-1 student: Review DS-2019 and consult the program sponsor or ISSS adviser.
   J-1 scholar: Review DS-2019 and coordinate with the hosting department and sponsor.
+workflow_sources:
+  program_extension:
+  - penn-extension
+  - penn-deadlines
+  - penn-final-rule-planning
+  travel:
+  - penn-travel
+  - penn-i94
+  - penn-final-rule
+  post_completion:
+  - penn-current-students
+  - penn-deadlines
+  - penn-final-rule-planning
+  opt:
+  - penn-opt
+  - uscis-opt
+  - uscis-student-employment
+  stem_opt:
+  - penn-stem-opt
+  - uscis-stem-opt
+  academic_training:
+  - penn-academic-training
+  - dos-j1-students
+  scholar_program:
+  - penn-current-scholars
+  - dos-j1-scholars
+  - dos-j1-extensions

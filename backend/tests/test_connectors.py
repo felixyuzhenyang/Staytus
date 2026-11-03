@@ -306,7 +306,9 @@ def test_setup_status_identifies_exact_callback_and_missing_settings_without_sec
     assert row["setup"]["application_type"] == "Web / server application"
     monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "")
     response = client.get("/api/v1/connections", headers=student)
-    google, microsoft = response.json()["providers"]
+    providers = {row["provider"]: row for row in response.json()["providers"]}
+    google, microsoft = providers["google"], providers["microsoft"]
+    assert "icloud" in providers and not providers["icloud"]["connected"]
     assert google["configured"] is False and google["setup"]["missing"] == ["GOOGLE_CLIENT_SECRET"]
     assert microsoft["configured"] is True
     assert "test-secret" not in response.text and "ms-secret" not in response.text

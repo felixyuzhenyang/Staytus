@@ -144,8 +144,12 @@ def propose(db: Session, p: Profile, kind: str, payload: dict):
     if kind == "profile_update" and not normalized:
         raise HTTPException(422, "Profile update cannot be empty")
     if kind == "email" or (kind == "calendar" and normalized.get("provider") != "export"):
-        from app.integrations.connectors import approval_connector_target
-        normalized["_connector_target"] = approval_connector_target(db, p, kind, normalized)
+        if kind == "calendar" and normalized.get("provider") == "icloud":
+            from app.integrations.icloud_calendar import approval_connector_target
+            normalized["_connector_target"] = approval_connector_target(db, p)
+        else:
+            from app.integrations.connectors import approval_connector_target
+            normalized["_connector_target"] = approval_connector_target(db, p, kind, normalized)
     a = Approval(profile_id=p.id, profile_version=p.version, kind=kind, payload=normalized, payload_hash=payload_hash(normalized), expires_at=now() + timedelta(minutes=get_settings().approval_minutes))
     db.add(a)
     db.flush()
@@ -187,7 +191,10 @@ def execute(db: Session, p: Profile, a: Approval, expected_hash: str):
         if a.payload.get("provider", "export") == "export":
             receipt = {"id": f"ics-{a.id}", "mode": "file_export", "message": "Calendar file ready to download and import; no remote calendar was changed", "created_at": iso(now())}
         else:
-            from app.integrations.connectors import execute_calendar
+            if a.payload.get("provider") == "icloud":
+                from app.integrations.icloud_calendar import execute_calendar
+            else:
+                from app.integrations.connectors import execute_calendar
             try:
                 receipt = execute_calendar(db, a, p)
             except HTTPException as error:

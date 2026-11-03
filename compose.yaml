@@ -5,15 +5,74 @@ services:
       POSTGRES_DB: staytus
       POSTGRES_USER: staytus
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env before starting PostgreSQL}
+      STAYTUS_RUNTIME_PASSWORD: ${STAYTUS_RUNTIME_PASSWORD:?Set an independent runtime password}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - staytus_pgdata:/var/lib/postgresql/data
       - ./infra/db/init.sql:/docker-entrypoint-initdb.d/01-vector.sql:ro
+      - ./infra/db/runtime-role.sh:/docker-entrypoint-initdb.d/02-runtime-role.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U staytus -d staytus"]
       interval: 5s
       timeout: 3s
       retries: 10
+  migrate:
+    profiles: [app]
+    image: staytus-backend:local
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: [migrate]
+    environment:
+      DATABASE_URL: ${STAYTUS_MIGRATION_DATABASE_URL:?Set the migration-owner URL using hostname db}
+      DATABASE_RUNTIME_ROLE: staytus_runtime
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+  api:
+    profiles: [app]
+    image: staytus-backend:local
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: [api]
+    env_file: backend/.env
+    environment:
+      DATABASE_URL: ${STAYTUS_RUNTIME_DATABASE_URL:?Set the limited-runtime URL using hostname db}
+      PORT: "8000"
+      POLICY_WORKER_ENABLED: "false"
+      NOTIFICATION_WORKER_ENABLED: "false"
+      MAIL_MONITOR_WORKER_ENABLED: "false"
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  gateway:
+    profiles: [app]
+    image: staytus-backend:local
+    command: [gateway]
+    env_file: backend/.env
+    environment:
+      DATABASE_URL: ${STAYTUS_RUNTIME_DATABASE_URL:?Set the limited-runtime URL using hostname db}
+      PORT: "8001"
+    ports: ["127.0.0.1:8001:8001"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  frontend:
+    profiles: [app]
+    image: staytus-frontend:local
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      BACKEND_URL: http://api:8000
+      APP_ORIGIN: ${STAYTUS_APP_ORIGIN:-http://127.0.0.1:3000}
+    # Production cookies are Secure. Use a local HTTPS reverse proxy for OAuth;
+    # this HTTP loopback listener is not a complete production browser setup.
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on: [api]
 volumes:
   staytus_pgdata:

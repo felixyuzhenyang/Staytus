@@ -141,7 +141,17 @@ class WatsonxClient:
         if (not isinstance(texts, list) or not 0 < len(texts) <= 1000 or not self.config.embedding_model
                 or any(not isinstance(text, str) or not text.strip() or len(text) > 64000 for text in texts)):
             raise ProviderError("A selected embedding model and bounded nonempty text inputs are required")
-        data = self._post("/ml/v1/text/embeddings", {"model_id": self.config.embedding_model, "inputs": texts})
+        payload = {"model_id": self.config.embedding_model, "inputs": texts}
+        # A character-bound policy chunk can still exceed the tokenizer limit.
+        # IBM documents this exact model's 512-token maximum and the embedding
+        # API's truncate_input_tokens parameter. Bound the encoder representation;
+        # preserve the caller's complete text, stored chunks and source citations.
+        # Do not guess another model's context limit or retry a rejected request.
+        # https://www.ibm.com/docs/en/watsonxdata/premium/2.2.x?topic=models-supported-encoder
+        # https://www.ibm.com/docs/en/watsonx/w-and-w/2.2.0?topic=generation-text-embeddings
+        if self.config.embedding_model == "ibm/granite-embedding-278m-multilingual":
+            payload["parameters"] = {"truncate_input_tokens": 512}
+        data = self._post("/ml/v1/text/embeddings", payload)
         try:
             vectors = [row["embedding"] for row in data["results"]]
             if len(vectors) != len(texts) or not vectors or not isinstance(vectors[0], list) or not vectors[0]:

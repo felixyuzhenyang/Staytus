@@ -16,7 +16,9 @@ export type Notice = {
   id: string; title?: string; message?: string; created_at?: string;
   old_date?: string; new_date?: string; data?: { old_date?: string; new_date?: string };
 };
-export type DashboardData = { profile: Profile; deadlines: Deadline[]; tasks: Task[]; notifications: Notice[] };
+export type WorkflowSource = { source_id?: string; title: string; url: string; capture_state?: string; policy_status?: string; reviewed?: boolean; stale?: boolean; captured_at?: string | null };
+export type WorkflowGuidance = { profile_version?: number; scope?: string; workflows: { id: string; title: string; category?: string; applicability: string; reason: string; priority: string; checklist: string[]; missing_information: { field: string; question: string; required_for?: string }[]; evidence_state: string; sources: WorkflowSource[]; legal_deadline: null; eligibility_determined: boolean }[] };
+export type DashboardData = { profile: Profile; deadlines: Deadline[]; tasks: Task[]; notifications: Notice[]; workflow_guidance?: WorkflowGuidance };
 export type Citation = { title?: string; url?: string; source_url?: string; status?: string; verified_at?: string | null };
 export type Policy = Citation & {
   id: string; title: string; text: string; status: string; reviewed: boolean;
@@ -37,11 +39,12 @@ export type ChatResponse = Omit<ChatMessage, "role"> & { mode: string; conversat
 export type Connection = {
   provider: string; configured: boolean; connected: boolean; email?: string; scopes?: string[]; last_sync_at?: string;
   agent_access?: boolean;
+  connection_id?: string | null;
   calendar_write?: boolean;
   email_identity_verified?: boolean;
   setup?: { missing: string[]; errors: string[]; callback_uri?: string | null; frontend_url?: string; application_type?: string; testing_note?: string };
 };
-export type CalendarProvider = "export" | "google" | "microsoft";
+export type CalendarProvider = "export" | "google" | "microsoft" | "icloud";
 export type OAuthCapability = "mail_read" | "mail_draft" | "calendar_write";
 export type MailMessage = { id: string; subject?: string; from?: string; received_at?: string; snippet?: string };
 export type Tab = "overview" | "assistant" | "policies" | "approvals" | "updates" | "profile" | "review" | "audit" | "connections";

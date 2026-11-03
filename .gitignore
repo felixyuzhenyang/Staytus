@@ -3,6 +3,8 @@
 .env.*
 !.env.example
 !**/.env.example
+!**/.env.production.example
+!**/.env.compose.example
 .venv/
 __pycache__/
 *.py[cod]
@@ -42,3 +44,8 @@ bob_sessions/**
 /docs/reviews/IBM_BOB_CODE_REVIEW_2026-11-01.md
 /docs/archive/VERIFICATION_INITIAL_2026-11-01.md
 /evals/demo_scenarios.json
+# Generated public runtime configuration; canonical YAML stays in config/.
+backend/config/
+.vercel/
+.vercel
+.env*

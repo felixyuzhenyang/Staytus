@@ -3,7 +3,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from app.config import get_settings
-from app.db import Base, get_db, make_engine
+from app.db import Base, get_db
+from database_support import isolated_engine
 from app.main import app
 from app.auth import clear_auth_rate_limits
 from app.models import Account
@@ -11,8 +12,8 @@ from support import FIXTURE_PASSWORD, seed_fixtures
 
 
 @pytest.fixture
-def env(tmp_path):
-    engine = make_engine(f"sqlite:///{tmp_path}/test.db")
+def env(tmp_path, request):
+    engine = isolated_engine(tmp_path, "test", request)
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     with factory() as db:

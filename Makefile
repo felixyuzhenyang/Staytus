@@ -1,6 +1,7 @@
-.PHONY: install dev test build openapi database
+.PHONY: install dev test build openapi database database-local migrate database-check images
 UV_CACHE_DIR ?= /private/tmp/staytus-uv-cache
 export UV_CACHE_DIR
+MIGRATION_ENV ?= .env
 
 install:
 	cd backend && uv sync --extra dev
@@ -22,3 +23,16 @@ openapi:
 
 database:
 	docker compose up -d db
+
+database-local:
+	backend/.venv/bin/python scripts/local_postgres.py start
+
+migrate:
+	cd backend && uv run python -m app.database_cli --env-file "$(MIGRATION_ENV)" upgrade
+
+database-check:
+	cd backend && uv run python -m app.database_cli check
+
+images:
+	docker build -f backend/Dockerfile -t staytus-backend:local .
+	docker build -f frontend/Dockerfile -t staytus-frontend:local .

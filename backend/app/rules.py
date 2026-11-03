@@ -30,6 +30,7 @@ class PennAdapter(SchoolAdapter):
             "supported_statuses": config["supported_categories"],
             "documents": ["Review I-20 or DS-2019 program dates", "Confirm academic or program reason with adviser", "Check Penn's current workflow in iPenn"],
             "verification": "Official directory links; adviser-specific data requires authorized access",
+            "workflow_sources": config.get("workflow_sources", {}),
         }
 
     def deadlines(self, profile: Profile, rule: RuleVersion | None = None):
@@ -41,6 +42,8 @@ class PennAdapter(SchoolAdapter):
         rule_id = rule.id if rule else "planning-" + sha256(json.dumps(defaults, sort_keys=True).encode()).hexdigest()[:16]
         source = {"title": "Penn ISSS (official reference; planning offsets are Staytus preferences)",
                   "url": config["office_url"], "verified_at": None}
+        document = "I-20" if profile.status_type == "F-1" else "DS-2019"
+        adviser_role = "DSO / ISSS adviser" if profile.status_type == "F-1" else "Responsible officer / program sponsor"
         items = [
             ("program_extension", "Begin program-extension planning", profile.program_end - timedelta(days=preparation_days),
              [f"Profile document end: {profile.program_end.isoformat()}", f"Internal preparation buffer: {preparation_days} calendar days", "Reminder = document end minus internal buffer. This is not a filing deadline."]),
@@ -53,7 +56,10 @@ class PennAdapter(SchoolAdapter):
         return [{"id": f"{profile.id}-{workflow}", "workflow": workflow, "title": title, "date": day.isoformat(),
                  "recommended_start": day.isoformat(), "rule_version": rule_id, "profile_version": profile.version,
                  "policy_version_id": rule.policy_version_id if rule else None, "trace": trace, "source": source,
-                 "is_planning_buffer": True, "document_end": profile.program_end.isoformat()}
+                 "is_planning_buffer": True, "document_end": profile.program_end.isoformat(),
+                 "document_type": document, "adviser_role": adviser_role,
+                 "legal_deadline": None,
+                 "guidance_workflow": "travel_reentry" if workflow == "travel_review" else "program_extension" if workflow == "program_extension" else "admission_record"}
                 for workflow, title, day, trace in items]
 
 

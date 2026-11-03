@@ -70,7 +70,9 @@ def escalate_to_isss(body: EscalationTool, session: AuthSession = Depends(get_to
 @router.post("/build_action_plan", operation_id="build_action_plan")
 def build_action_plan(body: EmptyTool, session: AuthSession = Depends(get_tool_session), db: Session = Depends(get_db)):
     profile = actor(db, session, "build_action_plan")
-    return {"tasks": svc.tasks_for(db, profile), "deadlines": svc.deadlines(db, profile)}
+    from app.workflow_guidance import build_workflow_guidance
+    return {"tasks": svc.tasks_for(db, profile), "deadlines": svc.deadlines(db, profile),
+            "workflow_guidance": build_workflow_guidance(db, profile)}
 
 
 @router.post("/propose_profile_update", operation_id="propose_profile_update")

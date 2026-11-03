@@ -92,7 +92,7 @@ class CalendarPayload(StrictModel):
     title: str = Field(min_length=1, max_length=160)
     date: date
     description: str = Field(default="", max_length=3000)
-    provider: Literal["export", "google", "microsoft"] = "export"
+    provider: Literal["export", "google", "microsoft", "icloud"] = "export"
     reminder_minutes: int = Field(default=1440, ge=0, le=40320)
 
 

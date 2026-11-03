@@ -4,9 +4,16 @@ version = "0.1.0"
 description = "Staytus application API, deterministic planning engine, and agent tool gateway"
 requires-python = ">=3.11"
 dependencies = [
-  "fastapi>=0.115,<1", "uvicorn[standard]>=0.34,<1",
-  "sqlalchemy>=2.0,<3", "pydantic-settings>=2.7,<3",
-  "httpx>=0.28,<1", "psycopg[binary]>=3.2,<4", "pgvector>=0.3,<1", "cryptography>=44,<51", "pyyaml>=6,<7"
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "sqlalchemy>=2.0,<3",
+  "pydantic-settings>=2.7,<3",
+  "httpx>=0.28,<1",
+  "psycopg[binary]>=3.2,<4",
+  "pgvector>=0.3,<1",
+  "cryptography>=44,<51",
+  "pyyaml>=6,<7",
+  "alembic>=1.17,<2",
 ]
 
 [project.optional-dependencies]

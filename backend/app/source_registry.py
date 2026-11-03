@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 from urllib.parse import urlsplit
 
 import yaml
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models import PolicySource
 
-CONFIG_ROOT = Path(__file__).resolve().parents[2] / "config"
+CONFIG_ROOT = Path(os.environ.get("STAYTUS_CONFIG_DIR", Path(__file__).resolve().parents[2] / "config")).resolve()
 SUPPORTED_CATEGORIES = {"F-1", "J-1 student", "J-1 scholar"}
 
 

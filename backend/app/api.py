@@ -39,7 +39,9 @@ def school(session: AuthSession = Depends(require_profile_session), db: Session 
 @router.get("/dashboard")
 def dashboard(session: AuthSession = Depends(require_profile_session), db: Session = Depends(get_db)):
     p = db.get(Profile, session.profile_id)
+    from app.workflow_guidance import build_workflow_guidance
     return {"profile": {**svc.profile_json(p), "role": session.role}, "deadlines": svc.deadlines(db, p), "tasks": svc.tasks_for(db, p),
+            "workflow_guidance": build_workflow_guidance(db, p),
             "notifications": [svc.notification_json(n) for n in db.scalars(select(Notification).where(Notification.profile_id == p.id).order_by(Notification.created_at.desc()))],
             "mode": "live", "notice": "Your saved profile and internal planning reminders. Open the cited official sources to confirm current requirements; reminders are not official filing deadlines."}
 
@@ -90,6 +92,8 @@ def ics(approval_id: str, session: AuthSession = Depends(require_profile_session
     a = svc.get_approval(db, session.profile_id, approval_id)
     if a.kind != "calendar" or a.status != "SUCCEEDED":
         raise HTTPException(409, "Approve the calendar preview before exporting it")
+    if a.payload.get("provider", "export") != "export":
+        raise HTTPException(409, "This approval targets a connected calendar; create a separate export preview if you need a file")
     return Response(svc.calendar_ics(a), media_type="text/calendar", headers={"Content-Disposition": 'attachment; filename="staytus-reminder.ics"'})
 
 

@@ -2,6 +2,20 @@
 
 The original two plans and Unified Project Plan remain preserved. This file records implementation choices where those plans were contradictory or needed a local development path.
 
+## November 3 cloud database choice and funding audit
+
+The user selected Supabase Free, with no automatic paid upgrade, and completed project/password creation. Hosting is now active: certificate-verified TLS over the free Session pooler, separate owner/runtime roles, Alembic baseline, atomic25table/266row/98chunk transfer, dual-account API/gateway verification and a cloud application archive restored into new PostgreSQL. Keep existing backend identity/business services and psycopg/SQLAlchemy/Alembic; Supabase Data API is disabled and neither Supabase Auth nor GitHub branching is adopted. Original local databases remain intact; public compute deployment is separate. See `DATABASE_AND_CONTAINERS.md`.
+
+The logged-in course account is `3131681 - watsonx`. Promotions/discount/manual-credit lists showed no entries; subscription balance and account-wide usage were explicitly unauthorized. Therefore an overall credit balance, expiry or PostgreSQL eligibility was not established. The $250 database banner is a new-customer offer, not evidence of an applied credit. The resource list contains existing `watsonx-Hackathon Cloudant`, a different database service, and showed no PostgreSQL instance. The local Guide describes preprovisioned course services, no new-instance creation and account closure at program end; do not assume unrestricted PostgreSQL or Code Engine funding/provisioning.
+
+## November 3 shared database and container preparation
+
+The tool gateway is a database-backed application, not a stateless relay. It validates sessions and reads/writes owned business state, so it cannot be deployed against an independent copy of local SQLite. The operator database is now real project-local PostgreSQL shared by API/gateway; cloud-hosted PostgreSQL is the next provisioning step. Original SQLite is unchanged, with a separate migration-before backup.
+
+Versioned Alembic DDL runs explicitly before web processes. Runtime startup checks revision and refuses drift in version; it does not create tables/extensions. Migration configuration is separate from runtime/model secret validation, allowing a narrowly credentialed migration Job. Shared runtime signing/tool/token secrets must remain stable. Data transfer locks an empty target, verifies values and rolls back on failure. Only two measured legacy differences are tolerated; nonempty removed history is never silently discarded.
+
+Both images use repository-root build contexts, not `COPY ../config`; configuration is explicitly mounted/copied via STAYTUS_CONFIG_DIR. One backend image supports API/gateway/migrate/check roles. No cloud resource was created and no actual Docker image was built locally; native installed-package/standalone verification and locally executed PostgreSQL tests are separate from future image/cloud validation. Detailed evidence and commands are in `DATABASE_AND_CONTAINERS.md` and `VERIFICATION.md`.
+
 ## November 1 product migration — current decisions
 
 The numbered initial-prototype decisions below are historical. Current behavior replaces two chat paths with one backend-mediated Orchestrate runtime. Keyword chat, demo login, persona selection and replay are outside the product path. Real accounts/onboarding and OAuth provider code are implemented. A separate database preserves prototype data. Source scheduling and actual federal snapshots are implemented. The main Orchestrate Live profile/shared transport and account isolation now have real synthetic validation, including the local application HTTP path; private Penn access and live mailbox OAuth still need their own permissions/consent. See `ARCHITECTURE.md` and `../CHANGELOG.md`.
@@ -19,6 +33,10 @@ An actual fixed-marker comparison corrected the initial configuration assumption
 - **Scheduling is not device push.** The backend worker persists notices/outbox and schedules timezone-aware digests. The visible web page polls for in-app popups. OS/background push is not implemented, and shutting down the local backend stops scheduled work.
 - **Sender is separate from mailbox access.** Optional SMTP delivery uses an operator-configured sender. Recipient consent is bound to a provider-verified mailbox and current connection, not to arbitrary signup text. Email defaults off; uncertain deliveries are not silently retried. This does not grant the Agent unrestricted email-send permission.
 - **Live proof is bounded.** Four real Live cases exercised all13tools, including correct denial and unexecuted preview results. A proposal-only recheck passed after destination binding changed. No real calendar/mail write or OAuth authorization is inferred from those checks. Google/Microsoft application registration and personal consent remain prerequisites; no new credential was created in this iteration.
+
+## November 3 business expansion
+
+The November3 iteration adds topic-specific captures (23registered/15captured/87embedded chunks), evidence-aware category workflows, independently opted-in daily inbox checks and direct iCloud CalDAV linking. Workflow guidance remains advisory with no automatic eligibility/legal-date inference. iCloud uses a dedicated Apple app-specific password because supported-app Apple Account authorization is not assumed available; it is not a granular OAuth grant. Monitor consent is separate from assistant-preview permission and no SMTP/send capability is enabled. See `DATA_STORAGE_AND_RAG.md` and the November3 CHANGELOG entry; SQLite remains the current local database.
 
 ## Initial prototype decisions (superseded where stated above)
 

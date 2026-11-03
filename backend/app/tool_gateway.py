@@ -13,6 +13,8 @@ from pydantic import Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.config import get_settings
+from app.database_migrations import require_current_schema
+from app.db import engine, get_db
 from app.services import request_correlation
 from app.tools import router as tool_router
 
@@ -51,6 +53,8 @@ async def lifespan(app: FastAPI):
     if not (hmac.compare_digest(explicit.tool_key, effective.tool_key)
             and hmac.compare_digest(explicit.context_secret, effective.context_secret)):
         raise RuntimeError("Tool gateway and main application settings must use the same explicit secrets; restart with the shared server configuration")
+    if get_db not in app.dependency_overrides:
+        require_current_schema(engine)
     # Deliberately no schema bootstrap, database migration, background worker,
     # user-session creation, provider request or public-network binding here.
     yield

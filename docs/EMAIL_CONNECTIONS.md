@@ -2,11 +2,28 @@
 
 Staytus uses OAuth authorization-code + PKCE through its same-origin server proxy. The user signs in at Google/Microsoft; Staytus never collects the mailbox password. The implemented integration supports personal Gmail/Microsoft accounts and eligible school-managed accounts. A school administrator may restrict third-party consent even when the user can sign in normally.
 
+## Current public-domain setup — November3
+
+The public frontend, privately bound API and stable tool gateway are deployed at https://mystaytus.vercel.app. Its backend uses the existing encrypted-token key and approved production OAuth client secret. The developer configures these once per deployment; end users only sign into Staytus and separately authorize their chosen provider. A Staytus login email may be Outlook while the linked mailbox is Gmail; the two identities do not have to match.
+
+The existing Google Web client now has both the production callback below and its original local callback. The designated test user and only `gmail.readonly` / `calendar.events.owned` scopes were saved; Gmail and Google Calendar APIs display enabled. Public pre-consent HTTP tests passed PKCE, exact callbacks, scope separation, account binding, cancellation and replay rejection, with exact synthetic cleanup. The user personally completed Gmail consent and an actual inbox check returned1new matching message. Separate calendar consent subsequently passed; the UI displays Calendar writing enabled while retaining Gmail Read only. An exactly scoped live check confirmed the encrypted token, matching verified mailbox, offline refresh credential and primary Calendar events API200 with only its resource-kind field returned. No event details were requested and no event was created. Message content was not copied into reports or chat. Daily recurring checks and assistant-preview sharing remain off; real approved event creation remains a separate test.
+
+Google currently remains External/Testing. [Google documents a seven-day refresh-token lifetime for this configuration](https://developers.google.com/identity/protocols/oauth2#expiration), except basic identity-only requests. A stable public application URL does not change that state. Broad release requires completing branding/homepage/privacy-policy/domain and scope verification steps as applicable; server-side Gmail read uses a restricted scope and may require a security assessment unless an exception applies. [Google verification requirements and testing exceptions](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification). Do not describe a successful designated-test-user connection as approval for arbitrary public users.
+
+Microsoft remains unconfigured. The user completed normal Penn MFA, but the Penn-managed Entra console displayed no access/UI401. The user deferred Outlook. Use an authorized developer tenant to register one deployment-owned Web application; that does not require every student to register an application. Penn or another organization may separately restrict consent to an externally registered application. No Azure subscription, new tenant, role or administrator approval was created.
+
 ## Developer configuration
 
 OAuth is a protocol, not a ready-made application registration. Each deployment needs a registered OAuth application with a client ID, server-side secret, allowed redirect URL, requested delegated scopes and test-user/consent settings.
 
-The live Connections screen reports the **exact configured callback**, missing environment variable names and configuration errors without revealing credentials. Register that callback exactly. The default is:
+The live Connections screen reports the **exact configured callback**, missing environment variable names and configuration errors without revealing credentials. Register that callback exactly. Current production callbacks are:
+
+```text
+https://mystaytus.vercel.app/api/backend/connections/google/callback
+https://mystaytus.vercel.app/api/backend/connections/microsoft/callback
+```
+
+The Google callback is registered; the Microsoft callback is the planned value, not a completed registration. Local development defaults remain:
 
 ```text
 http://127.0.0.1:3000/api/backend/connections/google/callback
@@ -58,7 +75,7 @@ After developer setup, the user can use the mailbox they already own; they do no
 2. Open Connections → Connect Google/Microsoft. Review the provider permissions and personally finish any password/MFA/consent steps.
 3. Return to Staytus and confirm the provider/scopes are visible. Select **Check messages**. Only bounded recent official-topic metadata/short previews are returned, without attachments or full bodies.
 4. If the user wants the cloud Agent to inspect matching previews, separately enable **Allow assistant to read matching email previews**. OAuth connection alone never enables this.
-5. Once Orchestrate is deployed, ask it to check recent relevant email. The read-only tool uses the signed-in principal, never a model-supplied account ID. It returns at most10previews, each at most500characters, and marks them untrusted data rather than official policy authority.
+5. With the existing Live Orchestrate connection, ask it to check recent relevant email only if that separate Agent-preview toggle is enabled. The read-only tool uses the signed-in principal, never a model-supplied account ID. It returns at most10previews, each at most500characters, and marks them untrusted data rather than official policy authority.
 6. To test drafts, choose **Enable email drafts**, complete the separate provider grant, and approve one exact draft in Staytus. Verify it in the actual provider mailbox. No send endpoint is implemented.
 7. Turning off Agent access preserves manual mailbox reads. Relinking or disconnecting resets Agent access. Disconnect removes local tokens/pending authorizations; provider account settings can revoke provider-wide consent too.
 
@@ -71,9 +88,11 @@ After developer setup, the user can use the mailbox they already own; they do no
 - Mail previews are not persisted into the policy corpus or silently included in normal chat grounding. Agent access requires a separate user choice.
 - An enabled configuration screen is not a successful live connection. A real user must complete provider authorization; school/provider restrictions must be resolved through their normal approval process.
 
-## Preparation audit before the first real mailbox test
+## Earlier preparation audit, before the public-domain configuration
 
-The current private local configuration has a valid `CONNECTOR_TOKEN_KEY`. Google and Microsoft client IDs and secrets have not yet been supplied. Thus the remaining external developer steps are still necessary: choose/create an authorized Google Cloud or Entra application, register the exact callback, enable the relevant provider APIs, set its audience/test users/delegated permissions and save the client ID/secret privately on the backend. Only then can the user finish sign-in, MFA and consent. Entering an email address alone is insufficient. No OAuth application or persistent provider access was created by this code update.
+This historical audit recorded a valid local `CONNECTOR_TOKEN_KEY`. On November3, the Google Cloud project **Staytus** (`staytus-513614`) was created and its branding/external Testing setup was prepared. The user completed the policy step and explicitly approved creating Web client `staytus-local-web` with the exact local callback. Its client ID/secret were initially saved only in mode0600 backend `.env`; at that time, APIs/test-user/personal consent and Microsoft setup remained incomplete. The current public-domain configuration above supersedes those earlier setup gaps; personal consent remains separately verified.
+
+Remaining developer steps include completing the Google consent configuration, enabling the relevant provider APIs, registering the Web client's exact callback and test users, or completing the equivalent authorized Entra registration. Save client IDs/secrets privately on the backend. Only then can the user finish mailbox sign-in, MFA and delegated consent. Entering an email address alone is insufficient. Creating a Cloud project is not the same as creating an OAuth client or authorizing a mailbox.
 
 For Google, enable Gmail API for mail and **Google Calendar API** for calendar writes in the same authorized project. Calendar linking requests `https://www.googleapis.com/auth/calendar.events.owned`, which permits events in calendars the user owns; Staytus writes only the user's primary calendar. Microsoft calendar linking requests delegated `Calendars.ReadWrite` plus offline renewal. It does not require application-wide calendar access. Calendar-only linking requests no mailbox read or draft scopes. Incremental linking retains already granted known permissions; the consent page remains the place where the user approves the requested combination.
 
@@ -97,3 +116,21 @@ These provider events can be displayed by Apple Calendar when the user has added
 - A future native iOS/macOS app can request the appropriate EventKit permission or show EventKit's event editor. This requires native code, platform declarations and device testing, not merely a backend OAuth scope. See [Apple EventKit access](https://developer.apple.com/documentation/eventkit/accessing-the-event-store).
 
 Calendar event transport is verified with synthetic provider responses, including ownership/scope denial, no invitations, no repeat approval and terminal uncertain-write handling. No real user's calendar, Gmail or Microsoft mailbox was changed in these tests. Provider consent, calendar appearance/reminder timing and school restrictions still require a real-user test.
+
+## Separate daily read-only inbox monitoring
+
+Connections now includes **Read-only inbox monitoring** for Gmail and Outlook. After a verified mailbox read connection exists, a user may press **Check inbox now**, or separately enable **Allow a daily background inbox check** and select an IANA timezone and hour. Background reading defaults off. It is independent of sharing previews with the cloud Agent, creating drafts or sending email. No SMTP service is needed for reading and in-app notices; SMTP remains disabled in the current configuration.
+
+The authenticated API is `GET/PATCH /api/v1/mail-monitor/{google|microsoft}` and `POST /api/v1/mail-monitor/{provider}/check`. A PATCH contains `{enabled, timezone, check_hour}`. Manual checking can run with background monitoring off; attempts are limited to one per five minutes. The worker requires a running backend and checks only opted-in account/connection bindings. Relinking or revocation requires renewed consent. A durable lease prevents concurrent checks; a changed consent/binding discards results after the provider response.
+
+Checks use the existing bounded read service, restricted to the inbox and recent30days: Gmail uses `in:inbox`; Microsoft uses the inbox-folder messages endpoint. At most20 matching messages are returned, so this is not a complete mailbox archive or a guarantee that every important email was found. Sender/topic filtering currently covers Penn and selected federal sources. See [Gmail inbox filtering](https://developers.google.com/workspace/gmail/api/guides/list-messages) and [Microsoft mail folders/messages](https://learn.microsoft.com/en-us/graph/api/resources/mailfolder?view=graph-rest-1.0).
+
+Persistent monitoring state contains the connection binding, schedule, status and hashed message IDs for deduplication. Newly detected messages create a private in-app count notice, explicitly marked untrusted. Message bodies, snippets and subjects are not saved by the monitor; manual short previews are returned to the signed-in UI only. Nothing is added to the public policy corpus or silently sent to a model. No send, mark-read or delete operation is implemented by the monitor. These paths have mock/security tests; no real personal mailbox was checked during this iteration.
+
+## Direct iCloud calendar connection
+
+Staytus now includes an iCloud CalDAV adapter and connection UI. This is code and mocked-transport verification, not a live Apple Account connection. The user must personally enable Apple Account two-factor authentication and create a dedicated, independently revocable **app-specific password** following [Apple's official instructions](https://support.apple.com/en-us/102654). Staytus never asks for the primary Apple Account password. Apple app-specific credentials are not granular Google/Microsoft-style OAuth grants and may permit broader iCloud access; Staytus restricts its implementation to calendar discovery and approved event creation.
+
+`POST /api/v1/connections/icloud/link` uses the Apple Account email and app-specific password to discover only owned writable event calendars on fixed Apple HTTPS hosts. The credential and provider locations are encrypted server-side. If several calendars are found, the user must select one with `PATCH /api/v1/connections/icloud/calendar`. Changing the selected calendar or relinking rotates the approval binding. The UI never receives the password back, and neither the credential nor provider URLs are passed to the model.
+
+An exact-content calendar preview may choose `provider: icloud`. Final authenticated approval rechecks the owned writable calendar and performs one conditional event-creation PUT, without attendees/invitations. Discovery and creation share a bounded operation budget; an uncertain write is not automatically retried. Disconnect deletes the local credential; the user can also revoke its app-specific password in Apple Account settings. The adapter provides approved event creation, not two-way calendar synchronization, native EventKit access, mailbox reading or school-portal authorization. Actual Apple consent, event appearance and device reminder timing still need a real-user test.

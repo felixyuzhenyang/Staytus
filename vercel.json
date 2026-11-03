@@ -1,0 +1,169 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "web": {
+      "root": "frontend",
+      "framework": "nextjs",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "api",
+          "format": "url",
+          "env": "BACKEND_URL"
+        }
+      ]
+    },
+    "api": {
+      "root": "backend",
+      "framework": "fastapi",
+      "entrypoint": "app.vercel_api:app",
+      "buildCommand": "python ../scripts/package_runtime_config.py",
+      "functions": {
+        "app/vercel_api.py": {
+          "maxDuration": 300,
+          "includeFiles": "config/**"
+        }
+      }
+    },
+    "gateway": {
+      "root": "backend",
+      "framework": "fastapi",
+      "entrypoint": "app.vercel_gateway:app",
+      "buildCommand": "python ../scripts/package_runtime_config.py",
+      "functions": {
+        "app/vercel_gateway.py": {
+          "maxDuration": 120,
+          "includeFiles": "config/**"
+        }
+      }
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/tools/(.*)",
+      "destination": {
+        "service": "gateway"
+      }
+    },
+    {
+      "source": "/health",
+      "destination": {
+        "service": "gateway"
+      }
+    },
+    {
+      "source": "/internal/jobs/(.*)",
+      "destination": {
+        "service": "api"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "web"
+      }
+    }
+  ],
+  "crons": [
+    {
+      "path": "/internal/jobs/policy/penn-isss",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/penn-travel",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/uscis-students",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/dhs-study",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/dos-bridgeusa",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/penn-opt",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/penn-extension",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/penn-deadlines",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/penn-stem-opt",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/penn-academic-training",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/penn-current-students",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/penn-current-scholars",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/penn-i94",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/penn-policy-updates",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/penn-final-rule",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/penn-final-rule-planning",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/uscis-opt",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/uscis-stem-opt",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/uscis-student-employment",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/dhs-maintaining-status",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/dos-j1-extensions",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/dos-j1-students",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/internal/jobs/policy/dos-j1-scholars",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/internal/jobs/reminders",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/internal/jobs/mail",
+      "schedule": "0 14 * * *"
+    }
+  ]
+}

@@ -37,7 +37,7 @@ def test_calendar_unicode_folding_and_text_cannot_inject_events(env, student):
     assert "DESCRIPTION:Meeting\\nEND:VEVENT\\nBEGIN:VEVENT\\nSUMMARY:Injected" in unfolded
 
 
-@pytest.mark.parametrize("extra", [{"provider": "icloud"}, {"reminder_minutes": -1}, {"reminder_minutes": 40321}])
+@pytest.mark.parametrize("extra", [{"provider": "unknown"}, {"reminder_minutes": -1}, {"reminder_minutes": 40321}])
 def test_calendar_unsupported_target_or_alarm_cannot_be_approved(env, student, extra):
     client, _ = env
     response = client.post("/api/v1/approvals", headers=student, json={"kind": "calendar",

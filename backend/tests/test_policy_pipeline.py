@@ -7,7 +7,8 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
-from app.db import Base, make_engine
+from app.db import Base
+from database_support import isolated_engine
 from app.ingestion import chunk_text, fetch_source, normalize_html, store_candidate
 from app.integrations.watsonx import ProviderError
 from app.models import (
@@ -28,10 +29,10 @@ from app.source_registry import load_sources, sync_source_registry
 
 
 @pytest.fixture
-def capture_db(tmp_path, monkeypatch):
+def capture_db(tmp_path, monkeypatch, request):
     monkeypatch.setattr("app.ingestion.socket.getaddrinfo", lambda *args, **kwargs:
                         [(2, 1, 6, "", ("93.184.216.34", 443))])
-    engine = make_engine(f"sqlite:///{tmp_path}/capture.db")
+    engine = isolated_engine(tmp_path, "capture", request)
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     with factory() as db:
@@ -67,7 +68,9 @@ def test_registry_is_runtime_truth_and_contains_real_fetchable_sources(capture_d
     source.url = "https://example.org/tampered"
     sync_source_registry(capture_db)
     assert source.url == "https://global.upenn.edu/isss/" and source.auto_fetch_enabled
-    assert len(load_sources()) == 6
+    registered = {entry["id"] for entry in load_sources()}
+    assert {"penn-opt", "penn-stem-opt", "penn-extension", "penn-academic-training",
+            "dos-j1-scholars", "uscis-opt", "penn-i94"}.issubset(registered)
     assert all(row["freshness"] == "never_fetched" for row in source_statuses(capture_db))
 
 

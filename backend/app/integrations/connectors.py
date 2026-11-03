@@ -357,6 +357,7 @@ def connections(session: AuthSession = Depends(get_current_session), db: Session
         setup, connection = provider_readiness(name, settings), _connection(db, session.account_id, name)
         permission = db.get(MailAgentPermission, (session.account_id, name))
         rows.append({"provider": name, "configured": setup["configured"], "setup": setup,
+            "connection_id": connection.id if connection else None,
             "connected": connection is not None, "scopes": sorted(_scope_set(name, connection.scopes)) if connection else [],
             "capabilities": {"mail_read": bool(connection and _can_read(connection)),
                 "mail_draft": bool(connection and _can_draft(connection)),
@@ -365,6 +366,8 @@ def connections(session: AuthSession = Depends(get_current_session), db: Session
             "email_identity_verified": verified_connected_email(db, session.account_id, name) is not None,
             "agent_access": bool(connection and permission and permission.enabled),
             "last_sync_at": connection.last_sync_at.isoformat() + "Z" if connection and connection.last_sync_at else None})
+    from app.integrations.icloud_calendar import describe_connection
+    rows.append(describe_connection(db, session.account_id))
     return {"providers": rows, "portal": {"connected": False, "reason": "Penn private portal authorization is not configured"}}
 
 
@@ -530,7 +533,7 @@ def _short_text(value, length=1000):
     return re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", str(value or ""))[:length]
 
 
-def read_recent_messages(db: Session, account_id: str, provider: str, *, limit=20, for_agent=False):
+def read_recent_messages(db: Session, account_id: str, provider: str, *, limit=20, for_agent=False, inbox_only=False):
     """One account-scoped provider path for UI and the delegated Agent tool.
 
     OAuth permission allows Staytus to read; an additional recorded user choice
@@ -554,7 +557,7 @@ def read_recent_messages(db: Session, account_id: str, provider: str, *, limit=2
         with httpx.Client(timeout=10, follow_redirects=False) as client:
             if provider == "google":
                 listing = _mail_get(client, connection, settings, "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-                    params={"maxResults": 20, "q": "newer_than:30d {from:isss from:uscis.gov from:ice.dhs.gov from:state.gov}"}, deadline=deadline)
+                    params={"maxResults": 20, "q": ("in:inbox " if inbox_only else "") + "newer_than:30d {from:isss from:uscis.gov from:ice.dhs.gov from:state.gov}"}, deadline=deadline)
                 for row in listing.get("messages", [])[:20]:
                     if len(result) >= limit:
                         break
@@ -567,7 +570,7 @@ def read_recent_messages(db: Session, account_id: str, provider: str, *, limit=2
                             "snippet": _short_text(value.get("snippet"), 500 if for_agent else 1000)})
             else:
                 cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat(timespec="seconds").replace("+00:00", "Z")
-                listing = _mail_get(client, connection, settings, "https://graph.microsoft.com/v1.0/me/messages",
+                listing = _mail_get(client, connection, settings, "https://graph.microsoft.com/v1.0/me/" + ("mailFolders/inbox/messages" if inbox_only else "messages"),
                     params={"$top": 50, "$select": "id,subject,from,receivedDateTime,bodyPreview",
                             "$filter": f"receivedDateTime ge {cutoff}", "$orderby": "receivedDateTime desc"}, deadline=deadline)
                 for value in listing.get("value", [])[:50]:

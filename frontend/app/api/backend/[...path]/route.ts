@@ -2,11 +2,15 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 const cookieName = "staytus_session";
-const backend = process.env.BACKEND_URL || "http://127.0.0.1:8000";
+const backend = process.env.BACKEND_URL || (process.env.NODE_ENV === "production" ? null : "http://127.0.0.1:8000");
 type Context = { params: Promise<{ path: string[] }> };
 
 async function proxy(request: NextRequest, context: Context) {
+  if (!backend) {
+    return NextResponse.json({ detail: "The server API address is not configured." }, { status: 503 });
+  }
   const { path } = await context.params;
   if (!path.length || path.some(segment => !/^[A-Za-z0-9_.-]+$/.test(segment) || segment === "..")) {
     return NextResponse.json({ detail: "Invalid API path" }, { status: 400 });
@@ -90,7 +94,7 @@ async function proxy(request: NextRequest, context: Context) {
         ? "The assistant request timed out after waiting for retrieval and IBM. Check the Action inbox and Activity log before retrying; a cloud request may still be running."
         : "This request took too long. Check the current state before trying again." }, { status: 504 });
     }
-    return NextResponse.json({ detail: "Staytus API is unavailable. Start the backend on port 8000, then try again." }, { status: 502 });
+    return NextResponse.json({ detail: "Staytus API is temporarily unavailable. Please try again later." }, { status: 502 });
   }
 }
 

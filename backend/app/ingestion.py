@@ -40,7 +40,7 @@ class TextExtractor(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
-        main = tag == "main" or attrs.get("role") == "main" or attrs.get("id", "").casefold() in {
+        main = tag == "main" or attrs.get("role") == "main" or (attrs.get("id") or "").casefold() in {
             "main", "main-content", "main_content", "maincontent", "content", "primary"}
         article = tag == "article"
         hidden = tag in {"script", "style", "noscript", "svg", "nav", "footer"} or (

@@ -11,7 +11,7 @@ export default function CalendarReminderDialog({ deadline, connections, busy, er
   onClose: () => void; onPreview: (provider: CalendarProvider, reminderMinutes: number) => Promise<void>; onConnections: () => void;
 }) {
   const firstConnected = connections.find(canWriteCalendar)?.provider;
-  const [provider, setProvider] = useState<CalendarProvider>(firstConnected === "google" || firstConnected === "microsoft" ? firstConnected : "export");
+  const [provider, setProvider] = useState<CalendarProvider>(firstConnected === "google" || firstConnected === "microsoft" || firstConnected === "icloud" ? firstConnected : "export");
   const [minutes, setMinutes] = useState(1440);
   const dialog = useRef<HTMLElement>(null);
   const ready = provider === "export" || canWriteCalendar(connections.find(item => item.provider === provider));
@@ -35,7 +35,7 @@ export default function CalendarReminderDialog({ deadline, connections, busy, er
       <ErrorNotice message={error} /><p><strong>{deadline.title}</strong><br />{date(deadline.date)}</p>
       <p className="muted">This date is a Staytus preparation reminder. Review current school requirements separately.</p>
       <div className="form-grid"><label>Calendar<select value={provider} onChange={event => setProvider(event.target.value as CalendarProvider)} disabled={busy}>
-        <option value="export">Calendar file (.ics)</option><option value="google">Google Calendar</option><option value="microsoft">Outlook / Microsoft Calendar</option>
+        <option value="export">Calendar file (.ics)</option><option value="google">Google Calendar</option><option value="microsoft">Outlook / Microsoft Calendar</option><option value="icloud">iCloud Calendar</option>
       </select></label><label>Alert before the date<select value={minutes} onChange={event => setMinutes(Number(event.target.value))} disabled={busy}>
         <option value={0}>On the date</option><option value={60}>1 hour before</option><option value={1440}>1 day before</option><option value={10080}>1 week before</option>
       </select></label></div>

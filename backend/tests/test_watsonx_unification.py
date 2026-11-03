@@ -40,6 +40,30 @@ def classifier_chat_response(summary="The office day changed"):
         "content": json.dumps({"summary": summary, "affected_status_types": []})}}]}
 
 
+@pytest.mark.parametrize("model,expected_parameters", [
+    ("ibm/granite-embedding-278m-multilingual", {"truncate_input_tokens": 512}),
+    ("another-selected-model", None),
+])
+def test_embedding_token_limit_is_model_specific_and_preserves_source_text(model, expected_parameters):
+    texts = ["A public policy citation 214.2(f)(10). " * 35, "签证、入境记录与项目文件是不同的信息。" * 70]
+    original = list(texts)
+    calls = []
+
+    def handler(request):
+        if request.url.host == "iam.cloud.ibm.com":
+            return httpx.Response(200, json={"access_token": "test-token", "expires_in": 3600})
+        calls.append(request)
+        body = json.loads(request.content)
+        assert request.url.path == "/ml/v1/text/embeddings"
+        assert body["inputs"] == original
+        assert body.get("parameters") == expected_parameters
+        return httpx.Response(200, json={"results": [{"embedding": [0.1, 0.2]} for _ in original]})
+
+    result = provider(handler, embedding=model).embeddings(texts)
+    assert result == [[0.1, 0.2], [0.1, 0.2]]
+    assert texts == original and len(calls) == 1
+
+
 def test_iam_is_cached_across_clients_and_401_refreshes_once():
     calls = []
     def handler(request):

@@ -4,12 +4,12 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
 
 from app.api import router as api_router
 from app.config import get_settings
-from app.db import Base, SessionLocal, engine, get_db
-from app import policy_models, chat_models, notification_models  # noqa: F401 - Register tables before create_all.
+from app.db import SessionLocal, engine, get_db
+from app.database_migrations import require_current_schema
+from app import policy_models, chat_models, notification_models, mail_monitor_models  # noqa: F401 - Register ORM tables.
 from app.integrations import connection_models  # noqa: F401 - Register OAuth tables.
 from app.identity import router as identity_router
 from app.chat import router as chat_router
@@ -20,6 +20,8 @@ from app.tools import router as tool_router
 from app.integrations.connectors import router as connector_router
 from app.services import request_correlation
 from app.notifications import router as notification_router, run_notifications_worker, NotificationSettings
+from app.mail_monitor import router as mail_monitor_router, run_mail_monitor_worker, MailMonitorSettings
+from app.integrations.icloud_calendar import router as icloud_router
 
 
 @asynccontextmanager
@@ -29,22 +31,23 @@ async def lifespan(app: FastAPI):
     # database, crawl real sources or start an outbound email worker.
     owns_database = get_db not in app.dependency_overrides
     if owns_database:
-        if engine.dialect.name == "postgresql":
-            with engine.begin() as connection:
-                connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        Base.metadata.create_all(engine)
+        require_current_schema(engine)
         with SessionLocal() as db:
             sync_source_registry(db)
             db.commit()
     stop = Event()
     worker = None
     reminder_worker = None
+    mail_worker = None
     if owns_database and get_settings().policy_worker_enabled:
         worker = Thread(target=run_worker, args=(stop,), name="staytus-policy-worker", daemon=True)
         worker.start()
     if owns_database and NotificationSettings().notification_worker_enabled:
         reminder_worker = Thread(target=run_notifications_worker, args=(stop,), name="staytus-reminder-worker", daemon=True)
         reminder_worker.start()
+    if owns_database and MailMonitorSettings().mail_monitor_worker_enabled:
+        mail_worker = Thread(target=run_mail_monitor_worker, args=(stop,), name="staytus-mail-monitor", daemon=True)
+        mail_worker.start()
     try:
         yield
     finally:
@@ -53,6 +56,8 @@ async def lifespan(app: FastAPI):
             worker.join(timeout=2)
         if reminder_worker:
             reminder_worker.join(timeout=2)
+        if mail_worker:
+            mail_worker.join(timeout=2)
 
 
 app = FastAPI(title="Staytus API", version="0.2.0", description="Account-owned international-student planning and policy tools for IBM Orchestrate", lifespan=lifespan)
@@ -84,5 +89,7 @@ app.include_router(identity_router)
 app.include_router(chat_router)
 app.include_router(policy_router)
 app.include_router(tool_router)
+app.include_router(icloud_router)
 app.include_router(connector_router)
+app.include_router(mail_monitor_router)
 app.include_router(notification_router)

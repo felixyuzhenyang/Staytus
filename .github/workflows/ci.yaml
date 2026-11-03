@@ -1,5 +1,7 @@
 name: Staytus checks
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -29,3 +31,41 @@ jobs:
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      database:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: staytus_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d staytus_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      STAYTUS_TEST_DATABASE_URL: postgresql+psycopg://postgres:synthetic-ci-password@127.0.0.1:5432/staytus_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.13'
+      - run: uv sync --frozen --extra dev
+        working-directory: backend
+      - run: uv run pytest -q
+        working-directory: backend
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f backend/Dockerfile -t staytus-backend:check .
+      - run: docker build -f frontend/Dockerfile -t staytus-frontend:check .
+      - name: Check installed migrations and config without starting workers
+        run: >-
+          docker run --rm --entrypoint python staytus-backend:check -c
+          "from app.schema import metadata; from app.source_registry import load_sources,load_school;
+          from app.database_migrations import migration_config;
+          from alembic.script import ScriptDirectory;
+          assert len(metadata().tables)==25; assert len(load_sources())>=23;
+          assert load_school()['id']=='penn'; assert ScriptDirectory.from_config(migration_config()).get_current_head()"

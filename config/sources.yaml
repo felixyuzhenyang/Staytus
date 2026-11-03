@@ -1,70 +1,357 @@
+# Explicit official topic pages; new captures remain pending review.
 version: 1
 default_fetch_enabled: true
 review_required: true
 user_agent: Staytus/0.2
 respect_robots: true
-# Read-only source snapshots are informational. Fetching does not certify that a rule is effective.
 sources:
-  - id: penn-isss
-    title: Penn ISSS
-    authority: university
-    school_id: penn
-    url: https://global.upenn.edu/isss/
-    allowed_hosts: [global.upenn.edu]
-    fetch_enabled: true
-    terms_review: public_read_only_robots_required
-    poll_interval_minutes: 360
-    staleness_days: 2
-    categories: [F-1, J-1 student, J-1 scholar]
-  - id: penn-travel
-    title: Penn ISSS Travel Information
-    authority: university
-    school_id: penn
-    url: https://global.upenn.edu/isss/home/immigration/travel/
-    allowed_hosts: [global.upenn.edu]
-    fetch_enabled: true
-    terms_review: public_read_only_robots_required
-    poll_interval_minutes: 360
-    staleness_days: 2
-    categories: [F-1, J-1 student, J-1 scholar]
-  - id: uscis-students
-    title: USCIS Students and Exchange Visitors
-    authority: government
-    url: https://www.uscis.gov/working-in-the-united-states/students-and-exchange-visitors
-    allowed_hosts: [www.uscis.gov]
-    fetch_enabled: true
-    terms_review: public_read_only_robots_required
-    poll_interval_minutes: 360
-    staleness_days: 2
-    categories: [F-1, J-1 student, J-1 scholar]
-  - id: dhs-study
-    title: DHS Study in the States
-    authority: government
-    url: https://studyinthestates.dhs.gov/
-    allowed_hosts: [studyinthestates.dhs.gov]
-    fetch_enabled: true
-    terms_review: public_read_only_robots_required
-    poll_interval_minutes: 360
-    staleness_days: 2
-    categories: [F-1]
-  - id: dos-bridgeusa
-    title: Department of State BridgeUSA Current Participants
-    authority: government
-    url: https://j1visa.state.gov/participants/current/
-    allowed_hosts: [j1visa.state.gov]
-    fetch_enabled: true
-    terms_review: public_read_only_robots_required
-    poll_interval_minutes: 360
-    staleness_days: 2
-    categories: [J-1 student, J-1 scholar]
-  - id: penn-opt
-    title: Penn ISSS Optional Practical Training
-    authority: university
-    school_id: penn
-    url: https://global.upenn.edu/isss/opt/
-    allowed_hosts: [global.upenn.edu]
-    fetch_enabled: true
-    terms_review: public_read_only_robots_required
-    poll_interval_minutes: 360
-    staleness_days: 2
-    categories: [F-1]
+- id: penn-isss
+  title: Penn ISSS
+  authority: university
+  school_id: penn
+  url: https://global.upenn.edu/isss/
+  allowed_hosts:
+  - global.upenn.edu
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 360
+  staleness_days: 2
+  categories:
+  - F-1
+  - J-1 student
+  - J-1 scholar
+- id: penn-travel
+  title: Penn ISSS Travel Information
+  authority: university
+  school_id: penn
+  url: https://global.upenn.edu/isss/home/immigration/travel/
+  allowed_hosts:
+  - global.upenn.edu
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 360
+  staleness_days: 2
+  categories:
+  - F-1
+  - J-1 student
+  - J-1 scholar
+  topics:
+  - travel_reentry
+  - travel_signature
+  - visa_renewal
+- id: uscis-students
+  title: USCIS Students and Exchange Visitors
+  authority: government
+  url: https://www.uscis.gov/working-in-the-united-states/students-and-exchange-visitors
+  allowed_hosts:
+  - www.uscis.gov
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 360
+  staleness_days: 2
+  categories:
+  - F-1
+  - J-1 student
+  - J-1 scholar
+- id: dhs-study
+  title: DHS Study in the States
+  authority: government
+  url: https://studyinthestates.dhs.gov/
+  allowed_hosts:
+  - studyinthestates.dhs.gov
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 360
+  staleness_days: 2
+  categories:
+  - F-1
+- id: dos-bridgeusa
+  title: Department of State BridgeUSA Current Participants
+  authority: government
+  url: https://j1visa.state.gov/participants/current/
+  allowed_hosts:
+  - j1visa.state.gov
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 360
+  staleness_days: 2
+  categories:
+  - J-1 student
+  - J-1 scholar
+- id: penn-opt
+  title: Penn ISSS Optional Practical Training
+  authority: university
+  school_id: penn
+  url: https://global.upenn.edu/isss/opt/
+  allowed_hosts:
+  - global.upenn.edu
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 360
+  staleness_days: 2
+  categories:
+  - F-1
+  topics:
+  - opt
+  - post_completion
+- id: penn-extension
+  title: Penn I-20/DS-2019 Extension Request
+  authority: university
+  url: https://global.upenn.edu/isss/home/immigration/cos/extension/
+  allowed_hosts:
+  - global.upenn.edu
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 720
+  staleness_days: 2
+  categories:
+  - F-1
+  - J-1 student
+  topics:
+  - program_extension
+  school_id: penn
+- id: penn-deadlines
+  title: Penn ISSS Deadlines and Processing Times
+  authority: university
+  url: https://global.upenn.edu/isss/home/immigration/deadlines/
+  allowed_hosts:
+  - global.upenn.edu
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 720
+  staleness_days: 2
+  categories:
+  - F-1
+  - J-1 student
+  - J-1 scholar
+  topics:
+  - school_processing
+  school_id: penn
+- id: penn-stem-opt
+  title: Penn F-1 STEM OPT Extension
+  authority: university
+  url: https://global.upenn.edu/isss/opt-stem/
+  allowed_hosts:
+  - global.upenn.edu
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 720
+  staleness_days: 2
+  categories:
+  - F-1
+  topics:
+  - stem_opt
+  school_id: penn
+- id: penn-academic-training
+  title: Penn J-1 Academic Training
+  authority: university
+  url: https://global.upenn.edu/isss/at/
+  allowed_hosts:
+  - global.upenn.edu
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 720
+  staleness_days: 2
+  categories:
+  - J-1 student
+  topics:
+  - academic_training
+  school_id: penn
+- id: penn-current-students
+  title: Penn Current Students Status and Completion
+  authority: university
+  url: https://global.upenn.edu/isss/home/prospective/new/students/
+  allowed_hosts:
+  - global.upenn.edu
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 720
+  staleness_days: 2
+  categories:
+  - F-1
+  - J-1 student
+  topics:
+  - status_completion
+  school_id: penn
+- id: penn-current-scholars
+  title: Penn Current Scholars and Sponsor Procedures
+  authority: university
+  url: https://global.upenn.edu/isss/home/prospective-scholars/new-scholars/current-scholars/
+  allowed_hosts:
+  - global.upenn.edu
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 720
+  staleness_days: 2
+  categories:
+  - J-1 scholar
+  topics:
+  - scholar_program
+  school_id: penn
+- id: penn-i94
+  title: Penn Form I-94 and Admission Record
+  authority: university
+  url: https://global.upenn.edu/isss/home/immigration/travel/i94/
+  allowed_hosts:
+  - global.upenn.edu
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 720
+  staleness_days: 2
+  categories:
+  - F-1
+  - J-1 student
+  - J-1 scholar
+  topics:
+  - admission_record
+  school_id: penn
+- id: penn-policy-updates
+  title: Penn Immigration Policy Updates and Resources
+  authority: university
+  url: https://global.upenn.edu/isss/immigration-policy-updates-resources/
+  allowed_hosts:
+  - global.upenn.edu
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 360
+  staleness_days: 2
+  categories:
+  - F-1
+  - J-1 student
+  - J-1 scholar
+  topics:
+  - policy_updates
+  school_id: penn
+- id: penn-final-rule
+  title: Penn DHS Final Rule Resource Center
+  authority: university
+  url: https://global.upenn.edu/isss/dhs-final-rule-resource-center/
+  allowed_hosts:
+  - global.upenn.edu
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 360
+  staleness_days: 2
+  categories:
+  - F-1
+  - J-1 student
+  - J-1 scholar
+  topics:
+  - admission_rule_updates
+  school_id: penn
+- id: penn-final-rule-planning
+  title: Penn DHS Final Rule Planning and Preparation
+  authority: university
+  url: https://global.upenn.edu/isss/dhs-final-rule-planning-preparation/
+  allowed_hosts:
+  - global.upenn.edu
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 360
+  staleness_days: 2
+  categories:
+  - F-1
+  - J-1 student
+  - J-1 scholar
+  topics:
+  - admission_rule_planning
+  school_id: penn
+- id: uscis-opt
+  title: USCIS Optional Practical Training for F-1 Students
+  authority: government
+  url: https://www.uscis.gov/working-in-the-united-states/students-and-exchange-visitors/optional-practical-training-opt-for-f-1-students
+  allowed_hosts:
+  - www.uscis.gov
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 720
+  staleness_days: 2
+  categories:
+  - F-1
+  topics:
+  - opt
+- id: uscis-stem-opt
+  title: USCIS STEM Optional Practical Training Extension
+  authority: government
+  url: https://www.uscis.gov/working-in-the-united-states/students-and-exchange-visitors/optional-practical-training-extension-for-stem-students-stem-opt
+  allowed_hosts:
+  - www.uscis.gov
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 720
+  staleness_days: 2
+  categories:
+  - F-1
+  topics:
+  - stem_opt
+- id: uscis-student-employment
+  title: USCIS Policy Manual Student Employment
+  authority: government
+  url: https://www.uscis.gov/policy-manual/volume-2-part-f-chapter-6
+  allowed_hosts:
+  - www.uscis.gov
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 720
+  staleness_days: 2
+  categories:
+  - F-1
+  topics:
+  - student_employment
+- id: dhs-maintaining-status
+  title: DHS Maintaining Student Status
+  authority: government
+  url: https://studyinthestates.dhs.gov/maintaining-status
+  allowed_hosts:
+  - studyinthestates.dhs.gov
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 720
+  staleness_days: 2
+  categories:
+  - F-1
+  topics:
+  - status_completion
+- id: dos-j1-extensions
+  title: BridgeUSA Program Adjustments and Extensions
+  authority: government
+  url: https://j1visa.state.gov/participants/current/adjustments-and-extensions/
+  allowed_hosts:
+  - j1visa.state.gov
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 720
+  staleness_days: 2
+  categories:
+  - J-1 student
+  - J-1 scholar
+  topics:
+  - j1_extension
+- id: dos-j1-students
+  title: BridgeUSA College and University Student Category
+  authority: government
+  url: https://j1visa.state.gov/programs/college-and-university-student/
+  allowed_hosts:
+  - j1visa.state.gov
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 1440
+  staleness_days: 3
+  categories:
+  - J-1 student
+  topics:
+  - academic_training
+- id: dos-j1-scholars
+  title: BridgeUSA Research Scholar Category
+  authority: government
+  url: https://j1visa.state.gov/programs/research-scholar/
+  allowed_hosts:
+  - j1visa.state.gov
+  fetch_enabled: true
+  terms_review: public_read_only_robots_required
+  poll_interval_minutes: 1440
+  staleness_days: 3
+  categories:
+  - J-1 scholar
+  topics:
+  - scholar_program

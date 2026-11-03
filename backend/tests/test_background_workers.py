@@ -7,7 +7,7 @@ from app import main
 def test_custom_database_lifespan_never_starts_operator_workers(env, monkeypatch):
     def forbidden(*args, **kwargs):
         raise AssertionError("An injected database must own initialization and workers")
-    monkeypatch.setattr(main.Base.metadata, "create_all", forbidden)
+    monkeypatch.setattr(main, "require_current_schema", forbidden)
     monkeypatch.setattr(main, "sync_source_registry", forbidden)
     monkeypatch.setattr(main, "Thread", forbidden)
     with TestClient(main.app) as client:

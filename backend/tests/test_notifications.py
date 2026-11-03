@@ -10,7 +10,8 @@ from sqlalchemy.orm import sessionmaker
 
 from app import notifications as n
 from app.auth import digest
-from app.db import Base, get_db, make_engine
+from app.db import Base, get_db
+from database_support import isolated_engine
 from app.models import Account, AuthSession, Notification, Profile, now
 from app.notification_models import NotificationDelivery, NotificationDeliveryItem, NotificationPreference, ReminderNotice
 
@@ -29,8 +30,8 @@ def settings(enabled=False):
 
 
 @pytest.fixture
-def store(tmp_path, monkeypatch):
-    engine = make_engine(f"sqlite:///{tmp_path}/reminders.db")
+def store(tmp_path, monkeypatch, request):
+    engine = isolated_engine(tmp_path, "reminders", request)
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     with factory() as db:

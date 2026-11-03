@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +10,11 @@ if (!existsSync(python) || !existsSync(resolve(root, 'frontend/node_modules'))) 
   process.exit(1);
 }
 mkdirSync(resolve(root, '.local'), { recursive: true });
+// An operator must migrate/adopt explicitly. Never silently stamp an old database.
+const schema = spawnSync(python, ['-m', 'app.database_cli', 'check'], {
+  cwd: resolve(root, 'backend'), stdio: 'inherit', env: process.env,
+});
+if (schema.status !== 0) process.exit(schema.status || 1);
 const processes = [
   spawn(python, ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000', '--no-access-log'], {
     cwd: resolve(root, 'backend'), stdio: 'inherit', env: process.env,
