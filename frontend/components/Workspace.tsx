@@ -22,7 +22,7 @@ export default function Workspace({ account, profile, role, onLogout, onSessionE
     {workspace.error && !workspace.selected && <ErrorNotice message={workspace.error} onDismiss={workspace.clearError} />}
     {workspace.loading && !["assistant", "profile"].includes(tab) ? <Loading /> : <>
       {tab === "overview" && <Dashboard data={workspace.dashboard} profile={profile} onAsk={message => { setTab("assistant"); if (message) void workspace.sendChat(message); }} onEditProfile={() => setTab("profile")} onUpdates={() => setTab("updates")} onRemind={deadline => void workspace.remind(deadline)} />}
-      {tab === "assistant" && <ChatPanel profile={profile} messages={workspace.messages} busy={busy === "chat"} locked={!!busy} error={workspace.error} onSend={workspace.sendChat} onApprovals={() => { setTab("approvals"); workspace.refresh(); }} onEditProfile={() => setTab("profile")} />}
+      {tab === "assistant" && <ChatPanel profile={profile} messages={workspace.messages} busy={busy === "chat"} locked={!!busy} error={workspace.error} onSend={workspace.sendChat} onRemind={deadline => void workspace.remind(deadline)} onApprovals={() => { setTab("approvals"); workspace.refresh(); }} onEditProfile={() => setTab("profile")} />}
       {tab === "policies" && <PoliciesPanel policies={workspace.policies} sources={workspace.sources} query={workspace.query} busy={!!busy} onSearch={workspace.setQuery} onCapture={workspace.captureSources} />}
       {tab === "approvals" && <ApprovalsPanel approvals={workspace.approvals} busy={!!busy} onInspect={workspace.inspect} />}
       {tab === "updates" && <PolicyUpdates notices={workspace.dashboard?.notifications || []} />}

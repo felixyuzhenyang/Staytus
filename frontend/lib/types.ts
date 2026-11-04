@@ -22,6 +22,7 @@ export type Deadline = {
   id?: string; title: string; workflow: string; date?: string; recommended_start?: string;
   rule_version?: string; trace?: string[]; is_planning_buffer?: boolean;
   source?: { title: string; url: string; verified_at?: string | null };
+  description?: string;
 };
 export type Task = { id?: string; title: string; status: string; due_date?: string };
 export type Notice = {
@@ -46,7 +47,15 @@ export type AuditEvent = { id: string; action?: string; created_at?: string; det
 export type Review = { id: string; title?: string; status: string; old_text?: string; new_text?: string; diff_summary?: string };
 export type ChatMessage = {
   role: "user" | "assistant"; message: string; citations?: Citation[]; tools?: unknown[]; approval?: Approval | null;
+  planning?: GuidedPlan;
 };
+export type PlanningWorkflow = "travel" | "opt" | "extension" | "academic_training" | "scholar";
+export type PlanningRequest = { workflow: PlanningWorkflow; profile_version: number; travel_date?: string | null;
+  travel_signature_date?: string | null; planning_details: PlanningDetails; notes: string };
+export type GuidedPlan = { workflow: PlanningWorkflow; title: string; profile_version: number; generated_at: string;
+  inputs: PlanningRequest; uses_temporary_details: boolean; calendar_targets: Deadline[]; retrieved_source_count: number;
+  record_checks: { id: string; message: string; state: string }[];
+  missing_information: { field: string; question: string }[]; sources: WorkflowSource[] };
 export type ChatResponse = Omit<ChatMessage, "role"> & { mode: string; conversation_id?: string; thread_id?: string };
 export type Connection = {
   provider: string; configured: boolean; connected: boolean; email?: string; scopes?: string[]; last_sync_at?: string;

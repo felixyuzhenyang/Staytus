@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api-client";
-import type { Approval, AuditEvent, CalendarProvider, ChatMessage, ChatResponse, Connection, DashboardData, Deadline, MailMessage, OAuthCapability, Policy, Profile, Review, SourceStatus, Tab } from "@/lib/types";
+import type { Approval, AuditEvent, CalendarProvider, ChatMessage, ChatResponse, Connection, DashboardData, Deadline, MailMessage, OAuthCapability, PlanningRequest, Policy, Profile, Review, SourceStatus, Tab } from "@/lib/types";
 
 type Options = { onSessionExpired: () => void; onProfileUpdated: (profile: Profile) => void };
 
@@ -27,6 +27,7 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   const [busy, setBusy] = useState("");
   const [revision, setRevision] = useState(0);
   const conversation = useRef<string | undefined>(undefined);
+  const historyLoaded = useRef(false);
   const requestLock = useRef(false);
   const lifecycle = useRef<AbortController | null>(null);
   const callbacks = useRef({ onSessionExpired, onProfileUpdated });
@@ -79,6 +80,13 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
       } else if (tab === "connections") {
         const [integrationResult, connectionResult] = await Promise.all([api<Record<string, unknown>>("integration-status", options), api<{ providers: Connection[] }>("connections", options)]);
         if (!controller.signal.aborted) { setIntegrations(integrationResult); setConnections(connectionResult.providers); }
+      } else if (tab === "assistant" && !historyLoaded.current && !requestLock.current) {
+        const result = await api<{ conversation_id?: string; messages: ChatMessage[] }>("chat/history", options);
+        if (!controller.signal.aborted && !requestLock.current && !conversation.current) {
+          conversation.current = result.conversation_id;
+          setMessages(previous => previous.length ? previous : result.messages);
+          historyLoaded.current = true;
+        }
       }
     }
     void load().catch(failure => handleError(failure, controller.signal, tab)).finally(() => { if (!controller.signal.aborted) setLoading(false); });
@@ -94,18 +102,22 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
     try { await run(requestSignal); } catch (failure) { handleError(failure, requestSignal, errorTab); }
     finally { requestLock.current = false; if (!requestSignal.aborted) setBusy(""); }
   }
-  async function sendChat(message: string) {
+  async function sendChat(message: string, planningRequest?: PlanningRequest): Promise<boolean> {
     const text = message.trim();
-    if (!text || requestLock.current) return;
+    if (!text || requestLock.current) return false;
+    let completed = false;
     setTab("assistant");
     setMessages(previous => [...previous, { role: "user", message: text }]);
     await action("chat", async requestSignal => {
-      const answer = await api<ChatResponse>("chat", { method: "POST", body: JSON.stringify({ message: text, conversation_id: conversation.current }), signal: requestSignal });
+      const answer = await api<ChatResponse>("chat", { method: "POST", body: JSON.stringify({ message: text, conversation_id: conversation.current, planning_request: planningRequest }), signal: requestSignal });
       if (requestSignal.aborted) return;
       if (answer.mode !== "orchestrate" || !answer.message?.trim()) throw new Error("The assistant did not return a verified Orchestrate response. Please check the service connection.");
       conversation.current = answer.conversation_id || answer.thread_id;
       setMessages(previous => [...previous, { role: "assistant", ...answer }]);
+      historyLoaded.current = true;
+      completed = true;
     }, "assistant");
+    return completed;
   }
   async function saveProfile(data: Record<string, unknown>) {
     await action("profile", async requestSignal => {
@@ -138,7 +150,7 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
     if (!calendarDeadline) return;
     const deadline = calendarDeadline;
     await action("reminder", async requestSignal => {
-      const approval = await api<Approval>("approvals", { method: "POST", body: JSON.stringify({ kind: "calendar", payload: { title: deadline.title, date: deadline.date, description: `Staytus preparation reminder. Review your documents and the official school process for ${deadline.workflow}.`, provider, reminder_minutes: reminderMinutes } }), signal: requestSignal });
+      const approval = await api<Approval>("approvals", { method: "POST", body: JSON.stringify({ kind: "calendar", payload: { title: deadline.title, date: deadline.date, description: deadline.description || `Staytus preparation reminder. Review your documents and the official school process for ${deadline.workflow}.`, provider, reminder_minutes: reminderMinutes } }), signal: requestSignal });
       const preview = await api<Approval>(`approvals/${approval.id}/preview`, { method: "POST", signal: requestSignal });
       if (requestSignal.aborted) return;
       setCalendarDeadline(null); setSelected(preview); setTab("approvals"); setRevision(value => value + 1);

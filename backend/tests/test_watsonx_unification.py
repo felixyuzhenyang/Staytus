@@ -308,7 +308,8 @@ def test_chat_policy_api_and_agent_tool_share_same_hybrid_retrieval(env, student
         store_candidate(db, db.get(PolicySource, "penn-isss"), "Travel documents must be reviewed before departure.", embedder=Embeddings())
         session = db.scalar(select(AuthSession).where(AuthSession.token_hash == digest(student["Authorization"][7:])))
         context = mint_tool_context(session)
-        grounding, citations = _grounding(db, session, query)
+        grounding, citations, plan, _ = _grounding(db, session, query)
+        assert plan is None
         assert '"retrieval_mode": "hybrid"' in grounding["content"] and citations
         db.commit()
     policy = client.get("/api/v1/policies", headers=student, params={"q": query}).json()

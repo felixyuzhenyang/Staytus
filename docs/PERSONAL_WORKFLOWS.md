@@ -1,4 +1,4 @@
-# Personal facts, application stages and future guided chat
+# Personal facts, application stages and guided chat
 
 ## Implemented in this iteration
 
@@ -21,16 +21,26 @@ No new legal deadline, grace-period countdown, eligibility approval or travel cl
 
 Primary pages inspected on 2026-11-03: [Penn OPT guide](https://global.upenn.edu/isss/opt/), [Penn STEM OPT](https://global.upenn.edu/isss/opt-stem/), [Penn travel](https://global.upenn.edu/isss/home/immigration/travel/) and [Penn final-rule resource center](https://global.upenn.edu/isss/dhs-final-rule-resource-center/). The USCIS OPT/STEM pages returned HTTP403 through the research tool. Conflicting/evolving guidance must be reviewed rather than silently converted into a filing rule. Signature validity depends on activity, document and re-entry circumstances; saving a signature date does not automatically establish permission to travel. This iteration intentionally does not turn a signature anniversary into an automatic legal conclusion.
 
-## Feasible next increment: guided requests in chat (not implemented yet)
+## Guided requests in chat (implemented)
 
-The existing chat already has starter prompts, but they currently send text. The proposed change is to make selected prompts launch an intent-specific form, for example **Plan an international trip**:
+The Assistant now has persistent workflow shortcuts and intent-specific forms: international travel, F-1 OPT/EAD, extension, J-1 student Academic Training and J-1 scholar appointment review. The last two and OPT are shown only for their corresponding saved status. For example **Plan a trip abroad**:
 
-1. Show saved departure, return, destination, document dates, current activity and application stage; request only missing facts. Let the user review what will be saved.
-2. Validate and save through the owned profile API, then send a structured intent referencing the new profile version to the existing authenticated chat route. Never let model-supplied account IDs select a principal.
-3. Have Orchestrate request the personalized action plan and current official evidence. Deterministic checks supply dates/conditions; the model explains the plan and unresolved questions. A pending source is labelled pending.
-4. Offer actual actions, such as preparing a calendar preview or opening the official request link. Existing final approval remains outside the model. Filing a school/government application is not implied.
+1. Prefill saved departure, return, destination, document dates, activity and application stage. The form explicitly says overrides are used for this plan only; Profile remains the place to save ongoing reminder facts. Travel requires departure, return and destination; other missing facts remain questions.
+2. Send typed `planning_request` data with the saved profile version to the existing authenticated `POST /chat`. The server rejects stale versions, incompatible categories and inconsistent merged dates before calling the model. A temporary scenario combines the current owned profile and supplied fields without changing persistent profile facts.
+3. Retrieve scoped real policy excerpts and supply the scenario, workflow record checks, missing questions and internal calendar targets to the same real Orchestrate runtime. The LLM writes the personalized narrative, steps and source explanation. It is instructed to label pending/unreviewed evidence and incomplete knowledge, use the request's language, and avoid inferring legal windows, travel permission or eligibility. Calendar buttons use deterministic backend targets rather than dates extracted from free-form model prose.
+4. Each plan offers preparation-reminder buttons using the existing calendar destination picker and exact-content approval. The user can choose an export or an already authorized provider, inspect the date/account/content and approve once. No calendar write occurs when a plan is generated. Expired internal preparation dates become a labelled review-today target, not a newly asserted deadline.
 
-The present profile changes provide most of the necessary data plumbing. A dedicated travel modal, intent state, review-before-save and a return-to-chat result are still needed. Do not label ordinary travel as an I-20 visa application: the workflow distinguishes a school document/travel endorsement from an entry-visa application.
+Live testing showed that this tenant could prioritize tool-derived saved facts over supplemental history. Guided requests therefore repeat a bounded scenario/evidence package in the current model turn. A narrow generated-text check flags unsupported dates/durations, certain execution claims and a known source-review misstatement, including Unicode date punctuation. One model correction is allowed; if it still fails, the route returns an error and saves no successful plan. This is not comprehensive legal/factual validation. The complete source review and eligibility boundaries still apply.
+
+Successful user/assistant turns, structured plan metadata and source references persist in the existing account-owned conversation JSON; no schema migration or extra model credential is needed. `GET /chat/history` restores the latest successful conversation on a return visit. Follow-up questions keep the temporary scenario while its base profile version is current. Profile changes invalidate that scenario and disable old calendar buttons. Temporary plan details do not automatically change the scheduled email-reminder pipeline: save them in Profile for recurring monitoring. Conversation history currently retains up to40turns; this is not a separate permanent plan archive.
+
+Do not label ordinary travel as an I-20 visa application: the workflow distinguishes a school document/travel endorsement from an entry-visa application. Source status and blocked/unavailable captures remain visible; retrieval does not prove comprehensive coverage. Proactive LLM messages remain separate work below.
+
+### Try it on the public website
+
+Open https://mystaytus.vercel.app and sign in, then choose **Assistant → Plan a trip abroad**. Review the prefilled fields and enter departure/return/destination. Optional dates allow conflict checks; for example a visa expiration before return produces an adviser-review signal, not a determination about status. In notes, request Chinese if preferred. Select **Generate my plan**, then inspect the narrative, official reference cards, missing questions and the trace behind each reminder. Use **Add to calendar → Calendar file (.ics) → Preview reminder** for an export-only test; approve only the exact preview you want. Google requires the existing Calendar grant; Outlook/iCloud still require their own setup. Refresh and return to Assistant to confirm the conversation restores. Use Profile to save facts needed for continuing reminders.
+
+Operator probe: `backend/.venv/bin/python scripts/verify_guided_planning.py --live --confirm-synthetic-test`. It creates only fictional accounts, tests real LLM/RAG plans and export approval, checks account isolation and removes exact test rows. `--keep-ui-fixture` retains temporary test accounts for visual QA; clean them with the same command plus `--cleanup-fixture` afterwards. It does not connect or write a real provider calendar.
 
 ## Feasible next increment: proactive assistant messages (not implemented yet)
 

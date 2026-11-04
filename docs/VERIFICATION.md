@@ -1,5 +1,11 @@
 # Current verification — November 3, 2026 (America/New_York)
 
+## Guided chat planning — 2026-11-03
+
+The guided forms and real Orchestrate/RAG plan path passed548backend tests (3opt-in PostgreSQL skips), TypeScript, production build, scoped lint and the existing13-tool OpenAPI contract. The21new guided tests include scoped form grounding, temporary/profile separation, date/category validation, history restoration, account isolation, concurrent profile change and bounded invalid-output correction/rejection. The generated-text checks catch selected timing/action/source-review mistakes; they do not establish general legal correctness.
+
+The final public two-account probe passed actual Chinese F-1 travel and J-1 Academic Training plans with5retrieved references each. It checked destination-specific output, travel-record conflict signals, unchanged persistent profiles, owned history restoration, cross-account denial and one approved calendar-file export. Actual browser form submission also returned200in Orchestrate mode with5references and1calendar target, and reached the final approval preview through the calendar picker. The isolated browser was signed out/closed and exact synthetic accounts/owned records removed. No real provider calendar was written. Private reports: `.local/vercel/guided-plan-probe.json` and synthetic response files. Desktop/mobile form/result screenshots are under ignored `output/playwright/`; mobile horizontal overflow was false. These proofs remain local. Proactive LLM messages and comprehensive answer-quality/legal validation remain separate work.
+
 ## Personal planning expansion — 2026-11-03
 
 The `planning_details` migration and conditional profile forms passed527backend tests (3opt-in PostgreSQL skips), frontend type checking/production build and13-tool OpenAPI validation. A live Supabase additive migration to `20261103_0002` preserved all existing profile values and kept new facts unknown; existing runtime access works. Before migration a private25-table/294-row versioned archive was copied under a read-only snapshot and compared by value.
