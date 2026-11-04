@@ -2,6 +2,7 @@ from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from app.profile_details import PlanningDetails, normalize_details
 
 
 class StrictModel(BaseModel):
@@ -29,11 +30,13 @@ class ProfileCreate(StrictModel):
     travel_date: date | None = None
     travel_signature_date: date | None = None
     notification_frequency: Literal["daily", "weekly", "monthly", "off"] = "weekly"
+    planning_details: PlanningDetails = Field(default_factory=PlanningDetails)
 
     @model_validator(mode="after")
     def ordered_dates(self):
         if self.program_start >= self.program_end:
             raise ValueError("Program end must be later than program start")
+        normalize_details(self.planning_details.model_dump(mode="json"), self.status_type, self.travel_date)
         return self
 
 
@@ -48,6 +51,7 @@ class ProfileUpdate(StrictModel):
     travel_date: date | None = None
     travel_signature_date: date | None = None
     notification_frequency: Literal["daily", "weekly", "monthly", "off"] | None = None
+    planning_details: PlanningDetails | None = None
 
 
 class ApprovalInput(StrictModel):
@@ -73,7 +77,7 @@ class SearchTool(StrictModel):
 
 
 class DeadlineTool(StrictModel):
-    workflow: Literal["program_extension", "travel_review", "document_review"] = "program_extension"
+    workflow: Literal["program_extension", "travel_review", "document_review", "opt_preparation", "ead_review", "academic_training_review"] = "program_extension"
 
 
 class PolicyTool(StrictModel):

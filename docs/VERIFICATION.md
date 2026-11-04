@@ -1,5 +1,27 @@
 # Current verification — November 3, 2026 (America/New_York)
 
+## Personal planning expansion — 2026-11-03
+
+The `planning_details` migration and conditional profile forms passed527backend tests (3opt-in PostgreSQL skips), frontend type checking/production build and13-tool OpenAPI validation. A live Supabase additive migration to `20261103_0002` preserved all existing profile values and kept new facts unknown; existing runtime access works. Before migration a private25-table/294-row versioned archive was copied under a read-only snapshot and compared by value.
+
+The public Vercel app passed two synthetic-account checks for profile creation, merged edits, preparation-to-submitted task changes, invalid dates, travel conflicts and J-1/OPT separation. One real IBM Orchestrate request returned the saved submitted stage with matching owned profile/action-plan tool audits. No real personal data, mailbox reads, provider writes or emails were used in this smoke; temporary records were cleaned. Edge displayed the new form under Your profile, and no real profile values were saved. Proofs are ignored under `.local/personal-planning/`; they do not enter Git. Legal-window computation, signature-validity conclusions, guided chat forms and proactive LLM messages are not claimed by these checks.
+
+## Latest SMTP selection and sender branding
+
+- User requested returning to the original SMTP key. Stopped at Brevo’s final IP-security confirmation; the user personally disabled SMTP IP blocking. The live page showed SMTP keys Deactivated. A new certificate-verified587/STARTTLS authentication using that same key returned235. API IP settings and key credentials were not changed.
+- Uploaded only the approved SMTP configuration and selected smtp in the existing Vercel Production project, then redeployed the same verified runtime source. The existing key remains only in backend `.env` and Vercel; release source/value files contain no SMTP credential copy. No database migration, domain purchase or GitHub push occurred.
+- The existing verified Brevo sender name was changed to Staytus. The user has no product mailbox, so its existing verified personal email is retained. Changing the display name does not remove the personal local part from Brevo's rewritten From address.
+- One new UI-requested test was received in the expected Gmail account in SPAM. Metadata confirmed display name Staytus and the exact application-generated SMTP Message-ID; the address still contains the personal prefix. No mailbox labels were changed. This is actual SMTP receipt, not confirmed INBOX placement.
+-32targeted notification/SMTP tests passed. Runtime file hashes match the preceding release that passed500backend tests, TypeScript,13-tool OpenAPI and production build. The new Production deployment completed successfully. The daily subscription and monitoring settings remain unchanged.
+
+## Latest daily monitoring and Brevo delivery
+
+- Public source release is ready on the existing domain with Brevo HTTPS selected and the approved restricted key in Vercel Production. Transactional statistics200 and ungranted account403 verified the resource boundary. SMTP login returned525 under its existing zero-entry IP allowlist; neither IP-security switch was changed.
+- User-approved daily Google monitoring and email subscription were saved through the authenticated UI. A precisely scoped immediate background-path check of that own UI-observed connection passed, found1new matching message and retained current consent. Next check: November4at09:00NewYork; digest eligible from10:00. Assistant-preview sharing remains off. This is not a naturally elapsed cron test.
+- The account-owned fixed-content test button produced one accepted Brevo delivery. Connected Gmail metadata independently confirmed the exact subject, current timestamp and delivery header, in SPAM (not INBOX). No unrelated message was sent and no mail labels were changed. The code and UI explicitly distinguish provider acceptance from verified mailbox placement.
+- Actual cloud metadata confirmed25enabled daily jobs. Authenticated manual mail/reminder dispatch completed200; public home200, logged-out notification API401 and unauthorized cron401. Private credential-free reports: `.local/brevo/`.
+- Final code checks:500passed/3PostgreSQL-only skips, TypeScript,13-tool OpenAPI and production build passed. First natural scheduled delivery, multi-day reliability, authenticated sender-domain/inbox placement and complete policy-personalization remain pending. See `BREVO_EMAIL.md`.
+
 ## Latest public-domain Google OAuth
 
 - User completed fresh incremental calendar consent. The authenticated UI shows Calendar writing enabled with Gmail Read only retained. The own connection UUID came from that user's visible Connections details. An exactly scoped operator probe verified token encryption access, matching provider-verified mailbox, calendar scope and an offline refresh credential. Actual primary Calendar events GET returned200 with only `kind: calendar#events` selected; event details were excluded and no calendar mutation occurred. `.local/oauth-production/calendar-readonly-verification.json`; screenshot `output/verification/google-calendar-connected.png`.

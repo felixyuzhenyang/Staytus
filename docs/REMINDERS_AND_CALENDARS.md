@@ -1,6 +1,6 @@
 # Reminders and connected calendars
 
-Staytus now has a durable account-owned reminder inbox, notification preferences and optional email digest outbox. The policy capture worker still owns public-source checking. The reminder worker consumes captured update notices and deterministic planning targets; it does not turn a newly captured page into an effective legal rule.
+Staytus now has a durable account-owned reminder inbox, notification preferences and opt-in email digest outbox with Brevo HTTPS and optional SMTP transports. The policy capture worker still owns public-source checking. The reminder worker consumes captured update notices and deterministic planning targets; it does not turn a newly captured page into an effective legal rule.
 
 ## What works without a mailbox
 
@@ -10,7 +10,7 @@ Staytus now has a durable account-owned reminder inbox, notification preferences
 - Settings support daily, weekly, monthly or off, a timezone, digest hour/day and preparation lead time. A month-day31 schedule clamps to the end of short months.
 - Calendar previews can still export an approved `.ics` file, including the selected display alarm and correctly folded Unicode text.
 
-The current popup is an application popup, not an operating-system push service. It does not run after the page closes. Both capture and reminder workers require a running backend; shutting down the development computer stops them. Public hosting is a later deployment task.
+The current popup is an application popup, not an operating-system push service. It does not run after the page closes. The public deployment runs capture, mailbox and reminder jobs in Vercel daily batches backed by Supabase. Closing this webpage or sleeping the development computer does not stop those cloud jobs. A selected hour is the earliest eligible time; exact minute-level delivery is not promised.
 
 ## Connected calendar writes
 
@@ -24,19 +24,20 @@ See [Apple calendar accounts](https://support.apple.com/guide/iphone/change-cale
 
 ## Daily read-only inbox checks
 
-Gmail/Outlook monitoring is separate from sending reminders. A verified read-authorized connection lets the user check the inbox on demand; recurring daily checks require a separate default-off opt-in, timezone and local hour. The consent binds to the current connection; relinking or revocation stops background access until renewed. Manual attempts have a five-minute cooldown. The backend must remain running.
+Gmail/Outlook monitoring is separate from sending reminders. A verified read-authorized connection lets the user check the inbox on demand; recurring daily checks require a separate default-off opt-in, timezone and local hour. The consent binds to the current connection; relinking or revocation stops background access until renewed. Manual attempts have a five-minute cooldown. The public cloud job runs independently of this page; local development still requires a running backend.
 
-The monitor checks a bounded recent30day inbox window and returns at most20 matching official-topic messages; it does not promise exhaustive coverage. It persists only hashed message IDs, schedule/check status and generic private count notices. It does not save message bodies/subjects/snippets, add mail to the policy RAG, share it with a model, send anything or mark messages read. The existing separately authorized Agent-preview tool remains independent. Real mailbox authorization and testing are still pending.
+The monitor checks a bounded recent30day inbox window and returns at most20 matching official-topic messages; it does not promise exhaustive coverage. It persists only hashed message IDs, schedule/check status and generic private count notices. It does not save message bodies/subjects/snippets, add mail to the policy RAG, share it with a model, send anything or mark messages read. The existing separately authorized Agent-preview tool remains independent. Personal Google authorization, a manual check and an explicitly opted-in background-path check passed for the current account. Other accounts remain default-off. Microsoft remains unconfigured/deferred.
 
-## Optional email delivery (deferred)
+## Opt-in email delivery
 
-Email is off by default. It needs both:
+The current public deployment selects the original Brevo SMTP key with STARTTLS after the user disabled its IP blocking. The restricted HTTPS API remains an explicit alternative. Real user-requested API and SMTP tests were accepted by Brevo and received by the linked Gmail account in SPAM; this does not prove INBOX placement or multi-day scheduled reliability. The current account's daily subscription is enabled, with the earliest digest time10:00America/New_York. See [Brevo setup and verification](BREVO_EMAIL.md).
 
-1. An operator-configured deployment sender (SMTP over TLS), with these private backend settings: `NOTIFICATION_EMAIL_ENABLED`, `NOTIFICATION_SMTP_HOST`, `NOTIFICATION_SMTP_PORT`, `NOTIFICATION_SMTP_SECURITY`, `NOTIFICATION_SMTP_USERNAME`, `NOTIFICATION_SMTP_PASSWORD`, `NOTIFICATION_FROM_EMAIL`.
-2. A user's explicit delivery opt-in to their provider-verified connected mailbox. Arbitrary signup/profile email text is not a verified recipient. Reconnection, recipient changes or revoked consent invalidate the saved binding.
+Delivery needs an operator-configured sender plus explicit opt-in to the user's provider-verified mailbox. Arbitrary signup/profile email text is not a verified recipient. Reconnection, recipient changes or revoked consent invalidate the saved binding. No Gmail send permission is needed to receive system reminders.
 
-The deployment sender is separate from a user's read/draft OAuth permission. Queued messages use durable claims and bounded retries only after safe, definitive rejection; an ambiguous send is recorded as unknown and is not silently resent. Recipient/connection, profile state and notice freshness are rechecked before delivery. The user deferred sending: SMTP remains disabled and no real reminder email was sent. Reading a mailbox and producing in-app notices do not require SMTP.
+Queued messages use durable claims and bounded retries only after definitive rejection; an ambiguous result is recorded as unknown and is not silently resent. Recipient/connection, profile state and notice freshness are rechecked before delivery. The owner-only test button sends a fixed non-sensitive message, cannot choose another recipient or custom content, is rate-limited and leaves other queued deliveries untouched. Mailbox reading and in-app notices are independent of email sending.
 
-## Before real-user testing
+## Remaining integration checks
 
-The token-encryption key and newly approved Google Web client credentials are configured; Microsoft credentials are not. Google project Staytus (`staytus-513614`) and branding/external Testing preparation exist; the user completed the policy step and approved Web client creation. Credentials were saved privately, while API enablement/test-user registration and personal authorization remain pending. Microsoft configuration remains missing. The exact preparation is in [EMAIL_CONNECTIONS.md](EMAIL_CONNECTIONS.md). Google/Microsoft registrations and personal consent are prerequisites for real mailbox/calendar tests. Direct iCloud uses its separate personally created app-specific credential and calendar selection. No provider authorization or live write has been completed by these code changes.
+The current Google client, production callback, personal Gmail and Calendar grants are configured. Read-only Gmail/Calendar checks passed; an actual approved calendar event remains to be tested. Google is still External/Testing. Microsoft developer registration and personal Outlook authorization remain deferred. iCloud needs a personally created app-specific credential and a chosen calendar.
+
+The first naturally scheduled digest and longer-term schedule reliability remain to be observed. The initial Brevo test reached SPAM, so sender-domain authentication and broader inbox-placement work remain before general public email use. Device background push and Penn private-portal submission are not implemented. System reminders do not add authority to activate unreviewed legal rules.

@@ -107,7 +107,7 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
       setMessages(previous => [...previous, { role: "assistant", ...answer }]);
     }, "assistant");
   }
-  async function saveProfile(data: Record<string, FormDataEntryValue | null>) {
+  async function saveProfile(data: Record<string, unknown>) {
     await action("profile", async requestSignal => {
       const result = await api<Profile>("profile", { method: "PATCH", body: JSON.stringify(data), signal: requestSignal });
       if (requestSignal.aborted) return;

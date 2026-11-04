@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.models import PolicyVersion, Profile, now
 from app.policy_models import PolicySnapshot, SourceCapture
 from app.source_registry import load_sources
+from app.business_planning import personalize_workflow
 
 
 def _question(field: str, question: str) -> dict:
@@ -88,7 +89,7 @@ def build_workflow_guidance(db: Session, profile: Profile, *, today: date | None
                 timing_signals.append("planned_departure_on_or_after_saved_program_end_requires_training_and_reentry_review")
         if key in {"opt", "post_completion"} and profile.graduation_date and profile.graduation_date != profile.program_end:
             timing_signals.append("academic_completion_and_document_end_differ_confirm_correct_date")
-        workflows.append({"id": key, "title": title, "category": status,
+        workflow = {"id": key, "title": title, "category": status,
             "applicability": relevance, "reason": why,
             "priority": "review_soon" if timing_signals or profile.program_end <= today + timedelta(days=60) else "plan_ahead",
             "timing_signals": timing_signals,
@@ -100,7 +101,8 @@ def build_workflow_guidance(db: Session, profile: Profile, *, today: date | None
             "legal_deadline": None, "eligibility_determined": False,
             "requires_adviser_review": True,
             "evidence_state": "reviewed_sources_available" if evidence and all(e["usable_as_current_authority"] for e in evidence) else "verification_required",
-            "sources": evidence})
+            "sources": evidence}
+        workflows.append(personalize_workflow(workflow, profile, today))
 
     add("admission_record", "Review admission record and policy updates",
         "The document end date, visa expiration and authorized admission are different facts.",
@@ -194,5 +196,5 @@ def build_workflow_guidance(db: Session, profile: Profile, *, today: date | None
             ["penn-current-scholars", "dos-j1-scholars", "dos-j1-extensions", "penn-deadlines"])
 
     return {"profile_version": profile.version, "generated_on": today.isoformat(),
-        "scope": "Preparation guidance; selected by saved category/dates. Missing facts and current official evidence require review before a legal deadline or eligibility decision.",
+        "scope": "Preparation guidance selected by saved category, application stage and dates. Missing facts and current official evidence require review before a legal deadline or eligibility decision.",
         "workflows": workflows}

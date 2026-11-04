@@ -54,7 +54,7 @@ make database-local
 
 ## 版本化结构升级
 
-基线为 `20261103_0001`，包含25张业务表，另有Alembic版本表。迁移定义在 `backend/app/migrations/versions/`；可审查的生成SQL为 `infra/db/migrations/20261103_0001.postgresql.sql`。SQL不包含连接信息、个人资料或密钥。
+基线为 `20261103_0001`，包含25张业务表，另有Alembic版本表。当前新增 `20261103_0002`，只为 `user_profiles` 添加默认空对象的 `planning_details` JSON列，已有个人资料不自动填入业务事实。迁移定义在 `backend/app/migrations/versions/`；可审查的生成SQL在 `infra/db/migrations/`。SQL不包含连接信息、个人资料或密钥。历史 SQLite 的显式 adopt 会先核对完整结构，再从匹配的历史版本升级，未知差异仍拒绝。
 
 API/gateway启动只检查版本，不执行 `create_all`、DDL或扩展创建。先以迁移账号运行：
 

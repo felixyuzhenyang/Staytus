@@ -76,6 +76,11 @@ if __name__ == "__main__":
     os.umask(0o077)
     try:
         values = json.loads((STATE / "production-values.json").read_text())
+        from dotenv import dotenv_values
+        local = dotenv_values(ROOT / "backend/.env")
+        for name in ("NOTIFICATION_SMTP_USERNAME", "NOTIFICATION_SMTP_PASSWORD", "NOTIFICATION_BREVO_API_KEY"):
+            if local.get(name):
+                values[name] = local[name]
         if args.action == "upload-env":
             upload_environment(values)
         else:

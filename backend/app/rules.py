@@ -5,6 +5,8 @@ from hashlib import sha256
 import json
 
 from app.models import Profile, RuleVersion
+from app.profile_details import details_for
+from app.business_planning import PLANNING_RULE_VERSION, preparation_targets
 
 
 class SchoolAdapter(ABC):
@@ -50,16 +52,27 @@ class PennAdapter(SchoolAdapter):
             ("document_review", "Review program documents with ISSS", profile.program_end - timedelta(days=review_days),
              [f"Profile document end: {profile.program_end.isoformat()}", f"Internal document-check reminder: {review_days} calendar days before program end", "No legal status or eligibility determination is made."]),
         ]
+        details = details_for(profile)
+        if details.extension_stage in {"not_needed", "completed"}:
+            items = [item for item in items if item[0] != "program_extension"]
+        elif details.extension_stage == "submitted":
+            items[0] = ("program_extension", "Follow up on your submitted program-extension request",
+                profile.program_end - timedelta(days=review_days),
+                [f"Saved document end: {profile.program_end.isoformat()}", "Internal follow-up buffer, not an application deadline.",
+                 "Submission does not itself extend the document or admission."])
         if profile.travel_date:
             items.append(("travel_review", "Review travel documents with ISSS", profile.travel_date - timedelta(days=travel_days),
                           [f"Planned travel: {profile.travel_date.isoformat()}", f"Internal travel preparation buffer: {travel_days} calendar days", "Travel-signature validity depends on status and circumstances; consult ISSS."]))
+        items.extend((workflow, title, day, trace) for workflow, title, day, trace, _ in preparation_targets(profile, defaults))
         return [{"id": f"{profile.id}-{workflow}", "workflow": workflow, "title": title, "date": day.isoformat(),
                  "recommended_start": day.isoformat(), "rule_version": rule_id, "profile_version": profile.version,
                  "policy_version_id": rule.policy_version_id if rule else None, "trace": trace, "source": source,
                  "is_planning_buffer": True, "document_end": profile.program_end.isoformat(),
                  "document_type": document, "adviser_role": adviser_role,
                  "legal_deadline": None,
-                 "guidance_workflow": "travel_reentry" if workflow == "travel_review" else "program_extension" if workflow == "program_extension" else "admission_record"}
+                 "planning_rule_version": PLANNING_RULE_VERSION,
+                 "guidance_workflow": {"travel_review": "travel_reentry", "program_extension": "program_extension",
+                     "opt_preparation": "opt", "ead_review": "opt", "academic_training_review": "academic_training"}.get(workflow, "admission_record")}
                 for workflow, title, day, trace in items]
 
 

@@ -34,6 +34,7 @@ def profile_json(p: Profile):
     return {"id": p.id, "name": p.name, "school": p.school, "status_type": p.status_type, "visa_type": p.status_type,
             "program_start": iso(p.program_start), "program_end": iso(p.program_end), "graduation_date": iso(p.graduation_date),
             "travel_date": iso(p.travel_date), "travel_signature_date": iso(p.travel_signature_date),
+            "planning_details": p.planning_details or {},
             "notification_frequency": p.notification_frequency, "version": p.version,
             "nationality": p.nationality, "email": p.email, "program_level": "Scholar" if "scholar" in p.status_type else "Student", "synthetic": p.synthetic}
 
@@ -54,6 +55,15 @@ def update_profile(db: Session, p: Profile, body: ProfileUpdate):
     start, end = data.get("program_start", p.program_start), data.get("program_end", p.program_end)
     if start >= end:
         raise HTTPException(422, "Program end must be later than program start")
+    from app.profile_details import normalize_details
+    details = dict(p.planning_details or {})
+    if "planning_details" in data:
+        details = {} if data["planning_details"] is None else {**details, **data["planning_details"]}
+    try:
+        data["planning_details"] = normalize_details(details, data.get("status_type", p.status_type),
+            data.get("travel_date", p.travel_date), category_changed=data.get("status_type", p.status_type) != p.status_type)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
     for key, value in data.items():
         setattr(p, key, value)
     if "name" in data and p.account_id:

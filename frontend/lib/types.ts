@@ -1,9 +1,21 @@
 export type Account = { id: string; email: string; name: string };
+export type PlanningDetails = {
+  f1_activity?: string; opt_stage?: string; opt_type?: string; academic_completion_date?: string | null;
+  dso_recommendation_date?: string | null; opt_submitted_date?: string | null; opt_requested_start?: string | null;
+  ead_start?: string | null; ead_end?: string | null; training_history_reviewed?: boolean | null; stem_eligibility_reviewed?: boolean | null;
+  post_completion_plan?: string; i94_admission_type?: string; i94_admit_until_date?: string | null;
+  passport_expiry?: string | null; visa_expiry?: string | null; return_date?: string | null;
+  travel_destination?: string | null; visa_renewal_planned?: boolean | null;
+  extension_stage?: string; extension_requested_end?: string | null; j1_category?: string;
+  sponsor_name?: string | null; host_department?: string | null; academic_training_stage?: string;
+  academic_training_start?: string | null; academic_training_end?: string | null; sponsor_authorized_on?: string | null;
+};
 export type Profile = {
   id: string; name: string; school: string; status_type: string; nationality?: string;
   program_start: string; program_end: string; graduation_date?: string | null;
   travel_date?: string | null; travel_signature_date?: string | null;
   notification_frequency?: string; email?: string; version?: number;
+  planning_details?: PlanningDetails;
 };
 export type AuthState = { account: Account; profile: Profile | null; needs_onboarding: boolean; role: string };
 export type Deadline = {
@@ -17,7 +29,7 @@ export type Notice = {
   old_date?: string; new_date?: string; data?: { old_date?: string; new_date?: string };
 };
 export type WorkflowSource = { source_id?: string; title: string; url: string; capture_state?: string; policy_status?: string; reviewed?: boolean; stale?: boolean; captured_at?: string | null };
-export type WorkflowGuidance = { profile_version?: number; scope?: string; workflows: { id: string; title: string; category?: string; applicability: string; reason: string; priority: string; checklist: string[]; missing_information: { field: string; question: string; required_for?: string }[]; evidence_state: string; sources: WorkflowSource[]; legal_deadline: null; eligibility_determined: boolean }[] };
+export type WorkflowGuidance = { profile_version?: number; scope?: string; workflows: { id: string; title: string; category?: string; applicability: string; reason: string; priority: string; saved_stage?: string; planning_rule_version?: string; record_checks?: { id: string; message: string; state: string; fields: string[] }[]; checklist: string[]; missing_information: { field: string; question: string; required_for?: string }[]; evidence_state: string; sources: WorkflowSource[]; legal_deadline: null; eligibility_determined: boolean }[] };
 export type DashboardData = { profile: Profile; deadlines: Deadline[]; tasks: Task[]; notifications: Notice[]; workflow_guidance?: WorkflowGuidance };
 export type Citation = { title?: string; url?: string; source_url?: string; status?: string; verified_at?: string | null };
 export type Policy = Citation & {

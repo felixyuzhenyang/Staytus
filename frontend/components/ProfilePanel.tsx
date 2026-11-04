@@ -5,7 +5,7 @@ import type { Profile } from "@/lib/types";
 import ProfileFields, { profileFormData } from "./ProfileFields";
 import { Badge } from "./ui";
 
-export default function ProfilePanel({ profile, busy, onSave }: { profile: Profile; busy: boolean; onSave: (data: Record<string, FormDataEntryValue | null>) => Promise<void> }) {
+export default function ProfilePanel({ profile, busy, onSave }: { profile: Profile; busy: boolean; onSave: (data: Record<string, unknown>) => Promise<void> }) {
   function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); void onSave(profileFormData(event.currentTarget)); }
   return <form key={profile.version || profile.id} className="panel profile-form" onSubmit={submit}>
     <div className="form-heading"><span className="avatar"><UserRound size={21} /></span><div><h2>{profile.name}</h2><p>{profile.school}</p></div><Badge tone="blue">{profile.status_type}</Badge></div>

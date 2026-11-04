@@ -87,6 +87,72 @@ def enable_digest(factory):
         db.commit()
 
 
+def test_email_probe_requires_config_consent_and_rejects_custom_content(client, store, monkeypatch):
+    assert client.post("/api/v1/notifications/test-email", json={}).status_code == 401
+    assert client.post("/api/v1/notifications/test-email", headers=authorization(), json={}).status_code == 409
+    monkeypatch.setattr(n, "NotificationSettings", lambda: settings(True))
+    assert client.post("/api/v1/notifications/test-email", headers=authorization(), json={}).status_code == 409
+    enable_digest(store[0])
+    assert client.post("/api/v1/notifications/test-email", headers=authorization(),
+        json={"recipient": "other@example.invalid", "body": "unapproved"}).status_code == 422
+
+
+def test_email_probe_sends_only_one_fixed_owned_message_and_enforces_cooldown(client, store, monkeypatch):
+    factory, _ = store
+    enable_digest(factory)
+    monkeypatch.setattr(n, "NotificationSettings", lambda: settings(True))
+    calls = []
+    monkeypatch.setattr(n, "send_smtp", lambda delivery, config: calls.append((delivery.recipient, delivery.body)))
+    response = client.post("/api/v1/notifications/test-email", headers=authorization(), json={})
+    assert response.status_code == 200 and response.json()["status"] == "SENT"
+    assert response.json()["provider_accepted"] is True and response.json()["inbox_delivery_verified"] is False
+    assert len(calls) == 1 and calls[0][0] == "verified-a@example.invalid"
+    assert "test email you requested" in calls[0][1] and "Synthetic a" not in calls[0][1]
+    assert client.post("/api/v1/notifications/test-email", headers=authorization(), json={}).status_code == 429
+    assert len(calls) == 1
+
+
+def test_email_probe_does_not_dispatch_other_outbox_items(client, store, monkeypatch):
+    factory, _ = store
+    enable_digest(factory)
+    monkeypatch.setattr(n, "NotificationSettings", lambda: settings(True))
+    with factory() as db:
+        for who in ("a", "b"):
+            db.add(NotificationDelivery(id="pending-" + who, account_id=who, profile_id="p-" + who,
+                dedup_key="digest:unrelated|profile:1", recipient=f"verified-{who}@example.invalid", provider="google",
+                connection_id="connection-" + who, subject="Other digest", body="Must not be sent by this test",
+                next_attempt_at=STAMP, status="QUEUED"))
+        db.commit()
+    calls = []
+    monkeypatch.setattr(n, "send_smtp", lambda delivery, config: calls.append(delivery.id))
+    response = client.post("/api/v1/notifications/test-email", headers=authorization(), json={})
+    assert response.status_code == 200 and calls == [response.json()["delivery_id"]]
+    with factory() as db:
+        assert all(db.get(NotificationDelivery, "pending-" + who).status == "QUEUED" for who in ("a", "b"))
+
+
+def test_email_probe_stops_after_relink(client, store, monkeypatch):
+    enable_digest(store[0])
+    store[1]["a"]["connection_id"] = "replacement-connection"
+    monkeypatch.setattr(n, "NotificationSettings", lambda: settings(True))
+    monkeypatch.setattr(n, "send_smtp", lambda *args: pytest.fail("Stale consent sent mail"))
+    assert client.post("/api/v1/notifications/test-email", headers=authorization(), json={}).status_code == 409
+
+
+@pytest.mark.parametrize("failure,status", [(n.DeliveryUncertain(), "UNKNOWN"), (n.DeliveryRejected(retryable=False), "FAILED")])
+def test_email_probe_reports_provider_failure_without_claiming_inbox_delivery(client, store, monkeypatch, failure, status):
+    factory, _ = store
+    enable_digest(factory)
+    monkeypatch.setattr(n, "NotificationSettings", lambda: settings(True))
+    def reject(*args):
+        raise failure
+    monkeypatch.setattr(n, "send_smtp", reject)
+    response = client.post("/api/v1/notifications/test-email", headers=authorization(), json={})
+    assert response.status_code == 200 and response.json()["status"] == status
+    assert not response.json()["provider_accepted"] and not response.json()["inbox_delivery_verified"]
+    assert client.post("/api/v1/notifications/test-email", headers=authorization(), json={}).status_code == 429
+
+
 def test_default_inbox_and_no_outbound_sending_even_when_transport_available(store):
     factory, _ = store
     calls = []
@@ -153,7 +219,7 @@ def test_preferences_reject_invalid_timezone_arbitrary_recipient_and_unconfigure
     for body in ({"timezone": "Not/A/Timezone"}, {"email_recipient": "attacker@example.invalid"}, {"digest_hour": 24}, {"popup_enabled": None}):
         assert client.patch("/api/v1/notifications/preferences", headers=authorization(), json=body).status_code == 422
     result = client.patch("/api/v1/notifications/preferences", headers=authorization(), json={"email_enabled": True})
-    assert result.status_code == 409 and "SMTP" in result.json()["detail"]
+    assert result.status_code == 409 and "sending service" in result.json()["detail"]
     result = client.patch("/api/v1/notifications/preferences", headers=authorization(), json={"timezone": "America/New_York", "frequency": "weekly", "popup_enabled": False})
     assert result.status_code == 200 and result.json()["preferences"]["timezone"] == "America/New_York"
     assert result.json()["preferences"]["frequency"] == "weekly"

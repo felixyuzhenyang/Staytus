@@ -2,16 +2,17 @@
 
 Policy capture remains in policy_pipeline. This module consumes its existing
 notifications and the deterministic planning service, without inventing policy
-or changing review/legal status. Email is off until an operator configures SMTP
+or changing review/legal status. Email is off until an operator configures a sender
 and a user consents to delivery to an OAuth-verified connected mailbox.
 """
 from datetime import date, datetime, time, timedelta, timezone
 from calendar import monthrange
 from email.message import EmailMessage
-from email.utils import parseaddr
+from email.utils import formataddr, parseaddr
 import smtplib
 import ssl
 import threading
+import httpx
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -20,11 +21,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import delete, exists, func, select, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.auth import require_profile_session
 from app.db import SessionLocal, get_db
-from app.models import AuthSession, Notification, Profile, now
+from app.models import Account, AuthSession, Notification, Profile, now
 from app.notification_models import NotificationDelivery, NotificationDeliveryItem, NotificationPreference, ReminderNotice
 from app.services import audit, deadlines, iso
 
@@ -37,6 +38,8 @@ class NotificationSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     notification_worker_enabled: bool = True
     notification_email_enabled: bool = False
+    notification_email_transport: Literal["smtp", "brevo_api"] = "smtp"
+    notification_brevo_api_key: str = Field(default="", repr=False)
     notification_smtp_host: str = ""
     notification_smtp_port: int = 465
     notification_smtp_security: Literal["ssl", "starttls"] = "ssl"
@@ -49,20 +52,22 @@ def email_readiness(settings: NotificationSettings) -> dict:
     missing = []
     if not settings.notification_email_enabled:
         missing.append("NOTIFICATION_EMAIL_ENABLED")
-    for field, variable in (("notification_smtp_host", "NOTIFICATION_SMTP_HOST"),
+    fields = [("notification_from_email", "NOTIFICATION_FROM_EMAIL")]
+    fields += [("notification_brevo_api_key", "NOTIFICATION_BREVO_API_KEY")] if settings.notification_email_transport == "brevo_api" else [
+            ("notification_smtp_host", "NOTIFICATION_SMTP_HOST"),
             ("notification_smtp_username", "NOTIFICATION_SMTP_USERNAME"),
-            ("notification_smtp_password", "NOTIFICATION_SMTP_PASSWORD"),
-            ("notification_from_email", "NOTIFICATION_FROM_EMAIL")):
+            ("notification_smtp_password", "NOTIFICATION_SMTP_PASSWORD")]
+    for field, variable in fields:
         if not getattr(settings, field):
             missing.append(variable)
     errors = []
-    if not 1 <= settings.notification_smtp_port <= 65535:
+    if settings.notification_email_transport == "smtp" and not 1 <= settings.notification_smtp_port <= 65535:
         errors.append("invalid_smtp_port")
     if settings.notification_from_email and not _email_address(settings.notification_from_email):
         errors.append("invalid_from_email")
     if any(c.isspace() for c in settings.notification_smtp_host):
         errors.append("invalid_smtp_host")
-    return {"configured": not missing and not errors, "missing": missing, "errors": errors,
+    return {"configured": not missing and not errors, "transport": settings.notification_email_transport, "missing": missing, "errors": errors,
         "verified_mailbox_required": True, "delivery_requires_user_opt_in": True}
 
 
@@ -185,7 +190,7 @@ def set_preferences(body: PreferenceUpdate, session: AuthSession = Depends(requi
     provider = values.get("email_provider", pref.email_provider)
     if values.get("email_enabled") is True or (pref.email_enabled and "email_provider" in values):
         if not email_readiness(NotificationSettings())["configured"]:
-            raise HTTPException(409, "Email delivery needs operator SMTP configuration before it can be enabled.")
+            raise HTTPException(409, "Email delivery needs an operator-configured sending service before it can be enabled.")
         identity = verified_mailbox(db, session.account_id, provider)
         if identity is None:
             raise HTTPException(409, "Connect and authorize your mailbox before enabling email digests.")
@@ -256,6 +261,54 @@ def list_deliveries(session: AuthSession = Depends(require_profile_session), db:
         .order_by(NotificationDelivery.created_at.desc()).limit(20))
     return {"deliveries": [{"id": item.id, "status": item.status, "attempts": item.attempts,
         "created_at": iso(item.created_at), "finished_at": iso(item.finished_at), "error_code": item.error_code} for item in items]}
+
+
+class TestEmailRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+@router.post("/test-email")
+def test_email(body: TestEmailRequest, session: AuthSession = Depends(require_profile_session), db: Session = Depends(get_db)):
+    """Send one fixed, non-sensitive test only to the owner's opted-in mailbox."""
+    settings, stamp = NotificationSettings(), now()
+    if not email_readiness(settings)["configured"]:
+        raise HTTPException(409, "Email delivery is not configured yet.")
+    # Serializes simultaneous tests for an account on the shared PostgreSQL DB.
+    db.scalar(select(Account).where(Account.id == session.account_id).with_for_update())
+    profile = db.get(Profile, session.profile_id)
+    pref = preferences_for(db, session.account_id)
+    identity = verified_mailbox(db, session.account_id, pref.email_provider)
+    if not (pref.email_enabled and profile.notification_frequency != "off" and identity
+            and identity["connection_id"] == pref.email_connection_id
+            and identity["email"].casefold() == (pref.email_recipient or "").casefold()):
+        raise HTTPException(409, "Save your email reminder subscription before sending a test.")
+    recent = db.scalar(select(NotificationDelivery.id).where(
+        NotificationDelivery.account_id == session.account_id,
+        NotificationDelivery.dedup_key.like("test:%"),
+        NotificationDelivery.created_at >= stamp - timedelta(minutes=5)).limit(1))
+    if recent:
+        raise HTTPException(429, "Wait five minutes before requesting another test email.", headers={"Retry-After": "300"})
+    slot = int(stamp.replace(tzinfo=timezone.utc).timestamp()) // 300
+    delivery = NotificationDelivery(account_id=session.account_id, profile_id=profile.id,
+        dedup_key=f"test:{slot}|profile:{profile.version}", recipient=identity["email"], provider=identity["provider"],
+        connection_id=identity["connection_id"], subject="Staytus — your email reminders are connected",
+        body=("This is the test email you requested in Staytus.\n\n"
+              "Your email reminder subscription is enabled. Scheduled digests are sent when there are eligible new reminders; "
+              "a quiet day may not produce an email. This test contains no immigration records or mailbox content.\n\n"
+              "Open https://mystaytus.vercel.app/ to review or turn off your subscription in Reminder settings.\n"
+              "Receiving email reminders does not enable the chat assistant to read your mailbox."),
+        status="QUEUED", attempts=0, next_attempt_at=stamp, created_at=stamp)
+    db.add(delivery)
+    db.flush()
+    identity_id = delivery.id
+    audit(db, profile.id, "notifications.test_email_requested", {"delivery_id": identity_id})
+    db.commit()
+    factory = sessionmaker(bind=db.get_bind(), expire_on_commit=False)
+    deliver_pending(factory, settings=settings, stamp=stamp, account_id=session.account_id, delivery_id=identity_id)
+    db.expire_all()
+    saved = db.get(NotificationDelivery, identity_id)
+    return {"delivery_id": identity_id, "status": saved.status,
+        "provider_accepted": saved.status == "SENT", "inbox_delivery_verified": False}
 
 
 def _insert_notice(db: Session, profile: Profile, key: str, kind: str, title: str, message: str,
@@ -349,7 +402,7 @@ def queue_digest(db: Session, profile: Profile, pref: NotificationPreference, st
     if not items:
         return False
     body = "Your Staytus reminders\n\n" + "\n\n".join(f"{item.title}\n{item.message[:2000]}" for item in items)
-    body += "\n\nOpen Staytus to review the sources, dates and next steps. You can turn off digests in Reminder settings."
+    body += "\n\nOpen https://mystaytus.vercel.app/ to review the sources, dates and next steps. You can turn off digests in Reminder settings."
     try:
         with db.begin_nested():
             delivery = NotificationDelivery(account_id=profile.account_id, profile_id=profile.id,
@@ -400,7 +453,7 @@ def send_smtp(delivery: NotificationDelivery, settings: NotificationSettings):
         close()
         raise DeliveryRejected(retryable=True) from None
     message = EmailMessage()
-    message["From"], message["To"], message["Subject"] = settings.notification_from_email, delivery.recipient, delivery.subject
+    message["From"], message["To"], message["Subject"] = formataddr(("Staytus", settings.notification_from_email)), delivery.recipient, delivery.subject
     message["Message-ID"] = f"<staytus-{delivery.id}@{settings.notification_from_email.rsplit('@', 1)[-1]}>"
     message.set_content(delivery.body)
     try:
@@ -420,18 +473,54 @@ def send_smtp(delivery: NotificationDelivery, settings: NotificationSettings):
         close()
 
 
-def deliver_pending(factory=SessionLocal, *, settings: NotificationSettings | None = None, sender=None, stamp=None) -> dict:
+def send_brevo_api(delivery: NotificationDelivery, settings: NotificationSettings):
+    """Use the restricted transactional-email key; never follow redirects or log bodies."""
+    try:
+        with httpx.Client(timeout=httpx.Timeout(20, connect=10), follow_redirects=False) as client:
+            response = client.post("https://api.brevo.com/v3/smtp/email",
+                headers={"api-key": settings.notification_brevo_api_key, "accept": "application/json"},
+                json={"sender": {"name": "Staytus", "email": settings.notification_from_email},
+                    "to": [{"email": delivery.recipient}], "subject": delivery.subject, "textContent": delivery.body,
+                    "headers": {"X-Staytus-Delivery-ID": delivery.id}})
+    except httpx.HTTPError:
+        # The server might have accepted the request before the connection failed.
+        raise DeliveryUncertain() from None
+    if response.status_code == 201:
+        try:
+            message_id = response.json()["messageId"]
+            if not isinstance(message_id, str) or not message_id or len(message_id) > 500:
+                raise ValueError("Invalid receipt")
+            return {"transport": "brevo_api", "provider_message_id": message_id}
+        except (KeyError, TypeError, ValueError):
+            raise DeliveryUncertain() from None
+    if response.status_code == 429:
+        raise DeliveryRejected(retryable=True)
+    if 400 <= response.status_code < 500 and response.status_code != 408:
+        raise DeliveryRejected(retryable=False)
+    # A timeout, redirect or provider-side failure isn't proof that no mail was accepted.
+    raise DeliveryUncertain()
+
+
+def deliver_pending(factory=SessionLocal, *, settings: NotificationSettings | None = None, sender=None, stamp=None,
+                    account_id: str | None = None, delivery_id: str | None = None) -> dict:
     settings, stamp = settings or NotificationSettings(), stamp or now()
     result = {"sent": 0, "retry_queued": 0, "uncertain": 0, "cancelled": 0, "failed": 0}
     if not email_readiness(settings)["configured"]:
         return {**result, "email_configured": False}
-    sender = sender or send_smtp
+    sender = sender or (send_brevo_api if settings.notification_email_transport == "brevo_api" else send_smtp)
+    if delivery_id is not None and account_id is None:
+        raise ValueError("Targeted delivery requires an account")
+    scope = []
+    if account_id is not None:
+        scope.append(NotificationDelivery.account_id == account_id)
+    if delivery_id is not None:
+        scope.append(NotificationDelivery.id == delivery_id)
     with factory() as db:
         # A process may have crashed after transmitting DATA. Never resend that claim.
-        db.execute(update(NotificationDelivery).where(NotificationDelivery.status == "SENDING",
+        db.execute(update(NotificationDelivery).where(*scope, NotificationDelivery.status == "SENDING",
             NotificationDelivery.claimed_at < stamp - timedelta(minutes=15)).values(
                 status="UNKNOWN", error_code="worker_interrupted_after_claim", finished_at=stamp))
-        ids = list(db.scalars(select(NotificationDelivery.id).where(NotificationDelivery.status == "QUEUED",
+        ids = list(db.scalars(select(NotificationDelivery.id).where(*scope, NotificationDelivery.status == "QUEUED",
             NotificationDelivery.next_attempt_at <= stamp).order_by(NotificationDelivery.created_at).limit(20)))
         db.commit()
     for identity in ids:
@@ -485,8 +574,10 @@ def deliver_pending(factory=SessionLocal, *, settings: NotificationSettings | No
             # Keep no database read transaction open during an SMTP round trip.
             db.commit()
             try:
-                sender(delivery, settings)
+                receipt = sender(delivery, settings)
                 delivery.status, delivery.finished_at = "SENT", stamp
+                if isinstance(receipt, dict) and receipt.get("provider_message_id"):
+                    audit(db, profile.id, "notifications.provider_accepted", {"delivery_id": delivery.id, **receipt})
                 result["sent"] += 1
             except DeliveryRejected as error:
                 if error.retryable and delivery.attempts < MAX_EMAIL_ATTEMPTS:

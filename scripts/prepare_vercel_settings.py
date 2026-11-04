@@ -10,7 +10,8 @@ from sqlalchemy.engine import make_url
 
 ROOT = Path(__file__).resolve().parents[1]
 SECRET_NAMES = {"DATABASE_URL", "CONTEXT_SECRET", "ORCHESTRATE_TOOL_KEY", "CONNECTOR_TOKEN_KEY",
-                "ORCHESTRATE_API_KEY", "WATSONX_API_KEY", "GOOGLE_CLIENT_SECRET", "MICROSOFT_CLIENT_SECRET", "CRON_SECRET"}
+                "ORCHESTRATE_API_KEY", "WATSONX_API_KEY", "GOOGLE_CLIENT_SECRET", "MICROSOFT_CLIENT_SECRET", "CRON_SECRET",
+                "NOTIFICATION_SMTP_USERNAME", "NOTIFICATION_SMTP_PASSWORD", "NOTIFICATION_BREVO_API_KEY"}
 
 
 def main():
@@ -29,15 +30,19 @@ def main():
         "ORCHESTRATE_SERVICE_URL", "ORCHESTRATE_API_KEY", "ORCHESTRATE_AGENT_ID", "ORCHESTRATE_TIMEOUT_SECONDS",
         "WATSONX_API_KEY", "WATSONX_PROJECT_ID", "WATSONX_URL", "WATSONX_API_VERSION", "WATSONX_EMBEDDING_MODEL",
         "WATSONX_GENERATION_MODEL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "MICROSOFT_CLIENT_ID",
-        "MICROSOFT_CLIENT_SECRET", "MICROSOFT_TENANT"]
+        "MICROSOFT_CLIENT_SECRET", "MICROSOFT_TENANT", "NOTIFICATION_SMTP_HOST", "NOTIFICATION_SMTP_PORT",
+        "NOTIFICATION_SMTP_SECURITY", "NOTIFICATION_SMTP_USERNAME", "NOTIFICATION_SMTP_PASSWORD", "NOTIFICATION_FROM_EMAIL",
+        "NOTIFICATION_EMAIL_TRANSPORT", "NOTIFICATION_BREVO_API_KEY"]
     cloud = {name: str(values[name]) for name in allowed if values.get(name)}
     previous = base / "production-values.json"
     saved = json.loads(previous.read_text()) if previous.is_file() else {}
     cloud.update(APP_ENVIRONMENT="production", CORS_ORIGINS="https://mystaytus.vercel.app",
         APP_ORIGIN="https://mystaytus.vercel.app", FRONTEND_URL="https://mystaytus.vercel.app",
-        OAUTH_CALLBACK_BASE="https://mystaytus.vercel.app/api/backend", ORCHESTRATE_CONTEXT_VERIFIED="false",
+        OAUTH_CALLBACK_BASE="https://mystaytus.vercel.app/api/backend",
+        ORCHESTRATE_CONTEXT_VERIFIED=saved.get("ORCHESTRATE_CONTEXT_VERIFIED", "false"),
         POLICY_WORKER_ENABLED="false", NOTIFICATION_WORKER_ENABLED="false", MAIL_MONITOR_WORKER_ENABLED="false",
-        NOTIFICATION_EMAIL_ENABLED="false", CRON_SECRET=saved.get("CRON_SECRET") or token_urlsafe(48))
+        NOTIFICATION_EMAIL_ENABLED=str(values.get("NOTIFICATION_EMAIL_ENABLED") or saved.get("NOTIFICATION_EMAIL_ENABLED") or "false"),
+        CRON_SECRET=saved.get("CRON_SECRET") or token_urlsafe(48))
     cloud["DATABASE_URL"] = url.update_query_dict({"sslrootcert": "/tmp/staytus-database-ca.pem"}).render_as_string(hide_password=False)
     for name in ("CONTEXT_SECRET", "ORCHESTRATE_TOOL_KEY", "CONNECTOR_TOKEN_KEY", "ORCHESTRATE_API_KEY", "WATSONX_API_KEY"):
         if not cloud.get(name):
@@ -47,14 +52,17 @@ def main():
             content = path.read_text(errors="ignore")
             if any(cloud.get(name) and len(cloud[name]) >= 16 and cloud[name] in content for name in SECRET_NAMES):
                 raise RuntimeError("A runtime secret was detected in the source upload; preparation refused")
-    previous.write_text(json.dumps(cloud))
+    # Keep SMTP credentials only in the approved backend .env and cloud secret
+    # store. The release operator reads them into memory when uploading.
+    previous.write_text(json.dumps({name: value for name, value in cloud.items()
+        if name not in {"NOTIFICATION_SMTP_USERNAME", "NOTIFICATION_SMTP_PASSWORD", "NOTIFICATION_BREVO_API_KEY"}}))
     previous.chmod(0o600)
     review = {"project": "staytus", "domain": "mystaytus.vercel.app",
         "secret_variable_names": sorted(SECRET_NAMES.intersection(cloud)),
         "nonsecret_variable_names": sorted(set(cloud) - SECRET_NAMES), "source_files": report["file_count"],
         "source_bytes": report["source_bytes"], "daily_jobs": report["cron_jobs"],
         "authoring_key_uploaded": False, "database_owner_uploaded": False, "private_artifacts_in_source": False,
-        "context_gate_enabled": False}
+        "context_gate_enabled": cloud["ORCHESTRATE_CONTEXT_VERIFIED"] == "true"}
     (base / "deployment-review.json").write_text(json.dumps(review, indent=2) + "\n")
     print(json.dumps(review, indent=2))
 

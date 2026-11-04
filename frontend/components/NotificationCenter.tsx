@@ -18,6 +18,7 @@ export default function NotificationCenter({ accountId, onSessionExpired, onOpen
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [emailTest, setEmailTest] = useState("");
   const [popup, setPopup] = useState<InboxNotice | null>(null);
   const seen = useRef(new Set<string>());
   const activePopup = useRef<string | null>(null);
@@ -46,7 +47,7 @@ export default function NotificationCenter({ accountId, onSessionExpired, onOpen
   useEffect(() => {
     const controller = new AbortController(); lifecycle.current = controller;
     seen.current = new Set(); activePopup.current = null; setPopup(null); setInbox({ notifications: [], unread_count: 0, popup_enabled: false });
-    setSettings(null); setOpen(false); setEditing(false); setError("");
+    setSettings(null); setOpen(false); setEditing(false); setError(""); setEmailTest("");
     const refresh = () => { if (document.visibilityState !== "hidden") void load(controller.signal).catch(failure => handleError(failure, controller.signal)); };
     refresh();
     const timer = window.setInterval(refresh, 30_000);
@@ -85,7 +86,7 @@ export default function NotificationCenter({ accountId, onSessionExpired, onOpen
   async function openSettings() {
     const signal = lifecycle.current?.signal;
     if (!signal) return;
-    setOpen(false); setError(""); setBusy(true);
+    setOpen(false); setError(""); setEmailTest(""); setBusy(true);
     try { const result = await api<PreferenceResponse>("notifications/preferences", { signal }); if (!signal.aborted) { setSettings(result); setEditing(true); } }
     catch (failure) { handleError(failure, signal); if (!signal.aborted) setOpen(true); }
     finally { if (!signal.aborted) setBusy(false); }
@@ -102,6 +103,21 @@ export default function NotificationCenter({ accountId, onSessionExpired, onOpen
     setBusy(true); setError("");
     try { const result = await api<PreferenceResponse>("notifications/preferences", { method: "PATCH", body: JSON.stringify(body), signal }); if (!signal.aborted) { setSettings(result); setEditing(false); await load(signal); } }
     catch (failure) { handleError(failure, signal); }
+    finally { if (!signal.aborted) setBusy(false); }
+  }
+  async function sendTestEmail() {
+    const signal = lifecycle.current?.signal;
+    if (!signal || busy) return;
+    setBusy(true); setError(""); setEmailTest("");
+    try {
+      const result = await api<{ status: string }>("notifications/test-email", { method: "POST", body: "{}", signal });
+      if (!signal.aborted) setEmailTest(result.status === "SENT"
+        ? "The mail service accepted your test email. Check your inbox and spam folder; inbox delivery is not yet confirmed."
+        : result.status === "QUEUED" ? "Your test is queued for a later delivery attempt."
+        : result.status === "UNKNOWN" || result.status === "SENDING"
+          ? "The delivery result is uncertain. Check your inbox before requesting another test."
+          : "The test was not sent. Check the delivery configuration and your current mailbox connection.");
+    } catch (failure) { handleError(failure, signal); }
     finally { if (!signal.aborted) setBusy(false); }
   }
   function closePopup() { activePopup.current = null; setPopup(null); }
@@ -125,7 +141,10 @@ export default function NotificationCenter({ accountId, onSessionExpired, onOpen
         {!!settings.verified_mailboxes.length && <label>Authorized mailbox<select name="email_provider" defaultValue={pref.email_provider || settings.verified_mailboxes[0].provider}>{settings.verified_mailboxes.map(item => <option key={item.provider} value={item.provider}>{item.email} ({item.provider})</option>)}</select></label>}
         {!emailReady && <p className="reminder-help">Email digests need a configured delivery service and an authorized mailbox.{onOpenConnections && <button type="button" className="reminder-text-button" onClick={() => { setEditing(false); callbacks.current.onOpenConnections?.(); }}>Open Connections</button>}</p>}
         {pref.email_enabled && !pref.email_consent_current && <p className="reminder-help">Your mailbox connection changed. Select the email option and save to authorize delivery to the current mailbox.</p>}
-        <p className="reminder-help">Popups appear while Staytus is open. Scheduled checks and email delivery need the backend to remain running. This setting does not enable device background push notifications.</p>
+        <p className="reminder-help">Cloud checks continue when this page is closed. The current deployment processes reminders in a daily batch; your selected hour is the earliest eligible time, not an exact delivery appointment. Digests are sent only when eligible reminders exist. Popups appear while Staytus is open.</p>
+        <button type="button" className="button secondary" disabled={busy || !emailReady || !pref.email_enabled || !pref.email_consent_current || pref.frequency === "off"} onClick={() => void sendTestEmail()}>Send me a test email</button>
+        <p className="reminder-help">Save your email subscription first, then reopen these settings to request one test. Tests contain no immigration records or mailbox content and are limited to one per five minutes.</p>
+        {emailTest && <p role="status" className="reminder-help">{emailTest}</p>}
         {error && <p role="alert" className="reminder-error">{error}</p>}<button type="submit" className="button primary" disabled={busy}>{busy ? "Saving…" : "Save reminder settings"}</button>
       </form></section></div>}
     {!open && !editing && error && <span className="reminder-sr-status" role="status">{error}</span>}

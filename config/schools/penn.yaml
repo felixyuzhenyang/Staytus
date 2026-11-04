@@ -16,6 +16,9 @@ planning_defaults:
   program_extension_prepare_days: 60
   document_review_days: 30
   travel_prepare_days: 30
+  opt_prepare_days: 60
+  ead_review_days: 30
+  academic_training_review_days: 30
 workflow_notes:
   F-1: Review I-20 and consult the assigned ISSS adviser about extension requirements.
   J-1 student: Review DS-2019 and consult the program sponsor or ISSS adviser.

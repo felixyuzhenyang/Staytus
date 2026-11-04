@@ -96,7 +96,10 @@ def get_policy_version_and_status(context: AgentRun, policy_version_id: str) -> 
 
 @tool(name="calculate_deadline", expected_credentials=CREDENTIALS)
 def calculate_deadline(context: AgentRun, workflow: str = "program_extension") -> dict:
-    """Calculate program_extension, travel_review or document_review deterministically."""
+    """Calculate internal preparation targets: program_extension, travel_review,
+    document_review, opt_preparation, ead_review or academic_training_review.
+    Never infer eligibility or a legal filing deadline from a planning target.
+    """
     return _call(context, "calculate_deadline", {"workflow": workflow})
 
 

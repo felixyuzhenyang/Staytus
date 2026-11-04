@@ -71,6 +71,8 @@ def create_profile(body: ProfileCreate, session: AuthSession = Depends(get_curre
         raise HTTPException(409, "Profile already exists; edit your existing profile")
     account = db.get(Account, session.account_id)
     data = body.model_dump()
+    from app.profile_details import normalize_details
+    data["planning_details"] = normalize_details(data["planning_details"], body.status_type, body.travel_date)
     data["school"] = body.school.strip()
     if not data["school"]:
         raise HTTPException(422, "School is required")

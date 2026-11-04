@@ -28,6 +28,7 @@ class Profile(Base):
     graduation_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
     travel_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
     travel_signature_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    planning_details: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
     notification_frequency: Mapped[str] = mapped_column(String(16), default="weekly")
     nationality: Mapped[str] = mapped_column(String(64), default="Not supplied")
     version: Mapped[int] = mapped_column(Integer, default=1)

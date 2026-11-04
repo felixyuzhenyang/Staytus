@@ -50,3 +50,16 @@ The November3 iteration adds topic-specific captures (23registered/15captured/87
 8. **No invented OPT policy changes.** Demo B changes an internal preparation buffer, with visible fictional labels. Demo fixtures never claim fresh official verification.
 9. **Operational integration remains explicit.** Production identity, external OAuth, scheduling, RLS, migrations and retention need additional implementation and validation. Course account administrator access is not assumed.
 10. **Honest Bob evidence.** Planning came from Bob; this initial implementation came from Codex. Subsequent Bob feature work and authentic screenshots must be retained for course submission.
+
+
+## 2026-11-03 — Brevo HTTPS delivery and daily monitoring
+
+- Production sends opted-in system reminders through a restricted Brevo transactional-email API key. The existing SMTP key is active but IP-blocked; SMTP IP protection and the pre-existing API security switch were preserved. SMTP is an explicit alternative, never an automatic fallback.
+- Keep the new key only in approved backend `.env` and Vercel Production; release artifacts contain no new key copy. The current verified account enabled daily read-only monitoring and reminder subscription separately; assistant-preview sharing stayed off.
+- Provider acceptance and actual Gmail receipt were verified separately. The real test reached SPAM, so record that outcome and do not claim verified INBOX placement. The first natural scheduled batch remains to be observed. See `BREVO_EMAIL.md` for verification and deployment timing.
+
+
+## 2026-11-03 — User-selected SMTP transport and sender identity
+
+- The user chose the original SMTP key and personally disabled SMTP IP blocking after action-time confirmation. Production now selects smtp with STARTTLS; HTTPS remains an explicit alternative with no automatic fallback. A new real SMTP test was received by Gmail in SPAM, with its application-generated Message-ID.
+- Brevo sender display name is Staytus. The existing verified From address still derives from a personal mailbox because the user has no product mailbox. Complete address anonymization requires a new owned, verified product mailbox or authenticated sending domain; renaming a display name does not provide that ownership.

@@ -21,7 +21,8 @@ def test_sqlite_upgrade_is_versioned_idempotent_and_matches_models(tmp_path):
     upgrade_database(engine)
     upgrade_database(engine)
     with engine.connect() as connection:
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == BASELINE_REVISION
+        from alembic.script import ScriptDirectory
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == ScriptDirectory.from_config(migration_config()).get_current_head()
         assert schema_differences(connection) == []
     engine.dispose()
 

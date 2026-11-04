@@ -6,7 +6,7 @@ from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import inspect, text
+from sqlalchemy import MetaData, create_engine, inspect, text
 
 from app.schema import metadata
 
@@ -56,20 +56,38 @@ def upgrade_database(engine):
 
 
 def adopt_sqlite_baseline(engine):
-    """No table/data changes: stamp only an exactly matching legacy SQLite schema."""
+    """Explicitly stamp only an exactly matching current or historical SQLite schema.
+
+    Historical adoption is followed by the shipped, additive migrations. Unknown
+    differences never get silently accepted as a new baseline.
+    """
     if engine.dialect.name != "sqlite":
         raise SchemaNotReady("Legacy adoption is restricted to the existing local SQLite database.")
     config = migration_config()
-    if ScriptDirectory.from_config(config).get_current_head() != BASELINE_REVISION:
-        raise SchemaNotReady("Legacy adoption needs an explicit historical-baseline upgrade path.")
+    head = ScriptDirectory.from_config(config).get_current_head()
+    # Build the immutable historical revision in an isolated in-memory database.
+    historical_engine = create_engine("sqlite://")
+    historical = MetaData()
+    try:
+        with historical_engine.begin() as historical_connection:
+            historical_config = migration_config()
+            historical_config.attributes["connection"] = historical_connection
+            command.upgrade(historical_config, BASELINE_REVISION)
+            historical.reflect(historical_connection, only=lambda name, _: name != "alembic_version")
+    finally:
+        historical_engine.dispose()
     with engine.begin() as connection:
         if current_revision(connection) is not None:
             raise SchemaNotReady("Database already has a migration revision; use upgrade/check.")
+        revision = head
         if schema_differences(connection):
-            raise SchemaNotReady("Existing schema differs from the baseline; adoption refused without changing data.")
+            differences = compare_metadata(MigrationContext.configure(connection, opts={"compare_type": True}), historical)
+            if differences:
+                raise SchemaNotReady("Existing schema differs from the reviewed historical/current schema; adoption refused without changing data.")
+            revision = BASELINE_REVISION
         config.attributes["connection"] = connection
-        command.stamp(config, BASELINE_REVISION)
-    require_current_schema(engine)
+        command.stamp(config, revision)
+    upgrade_database(engine)
 
 
 def grant_runtime_access(engine, role):
