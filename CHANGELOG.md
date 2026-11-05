@@ -1,5 +1,11 @@
 # Staytus change log
 
+## 2026-11-04 — Guided planning form layout and searchable destinations
+
+- Styled the shared Anything else to consider field as a full-width, shallow rounded textarea with a short English-only placeholder. All five guided planning workflows use this same field. Removed the nested fixed-height form scrollbar so fields and country menus can expand naturally.
+- Generalized the existing country selector for controlled planning inputs, optional profile fields and multiple travel destinations. Travel planning and Profile travel details now share the searchable country/region list; selected destinations can be removed individually. Search text is never saved as a country, existing historical values remain available, and the current80-character backend destination limit is enforced without changing the schema or business rules. Registration nationality remains a required single-country selection.
+- Validation:579backend tests passed/3opt-in PostgreSQL skips, frontend type checking,13-tool OpenAPI validation, production build and whitespace checks passed. Published the allowlisted source to the existing public domain with current production credentials/configuration preserved. Real browser checks verified destination search, Canada/Japan multiselect and semicolon-serialized value, keyboard selection/Escape, no-match Enter without submission, removal back to empty, short English-only notes and shared travel/OPT/extension layout. Profile travel search and unchanged required single-country nationality also passed. Test selections were cleared; no AI plan was submitted, real profile saved, database migrated or credential changed. No commit/push was performed.
+
 ## 2026-11-04 — Searchable profile country selector
 
 - Replaced the shared onboarding/Profile nationality text field with an accessible, searchable country/region dropdown. Added a checked-in249-entry ISO3166-1 code list with English/Chinese CLDR display labels, common-name aliases and code search; no third-party runtime lookup or new package is required.

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { PlanningDetails } from "@/lib/types";
+import CountrySelect from "./CountrySelect";
 
 type FieldName = keyof PlanningDetails;
 const unknown = ["unknown", "Not sure / not recorded"] as const;
@@ -55,7 +56,9 @@ export default function PlanningDetailFields({ value = {}, category, disabled }:
       {category !== "J-1 scholar" && select("post_completion_plan", "What is your plan after completion?", [unknown, ["undecided", "Still deciding"], ...(category === "F-1" ? [["opt", "OPT"], ["stem_opt", "STEM OPT"]] : []), ["transfer", "Transfer"], ["new_program", "Another program"], ["departure", "Leave the United States"], ["other", "Another plan"]])}
     </div>
     <details className="planning-field-group"><summary>Travel and document dates <span>Optional</span></summary><p className="field-hint">Departure and last travel endorsement are above. Return and document dates help identify what to review. No document numbers or copies are needed.</p><div className="form-grid">
-      {input("return_date", "Planned return to the US")}{input("travel_destination", "Destination country / countries", "text")}
+      {input("return_date", "Planned return to the US")}
+      <CountrySelect name="planning_details.travel_destination" label="Destination country / countries"
+        defaultValue={value.travel_destination || ""} required={false} multiple maxLength={80} disabled={disabled} />
       {input("passport_expiry", "Passport expiration")}{input("visa_expiry", "US entry visa expiration, if applicable")}
       {select("visa_renewal_planned", "Are you planning to apply for a new entry visa?", [["unknown", "Not sure / not applicable"], ["true", "Yes"], ["false", "No"]], "Visa expiration and permission to stay in the US are different. Exceptions require an individual review.")}
     </div></details>
