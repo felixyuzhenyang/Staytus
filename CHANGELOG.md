@@ -1,5 +1,11 @@
 # Staytus change log
 
+## 2026-11-04 — Render assistant Markdown messages
+
+- Traced the Latest policy sources formatting issue to ordinary assistant replies being rendered as a plain-text paragraph. Replaced that path and the limited planning-only line parser with a shared React Markdown/GFM renderer for all assistant replies. Stored history and message contents remain unchanged; user messages remain plain text.
+- Added styled headings, emphasis, real tables, nested lists, links, quotes and code blocks. Tables scroll inside their own labelled region instead of widening the page. A small AST transform accepts bare `<br>` as a line break, including inside cells; raw HTML execution, unsafe link protocols and automatic remote-image loading remain disabled.
+- Actual component-render checks passed for tables/cell breaks, nested lists, headings, links, literal code, quotes, hostile HTML/URLs and image suppression.579backend tests passed/3opt-in PostgreSQL skips, TypeScript,13-tool OpenAPI validation and production build passed. Published the allowlisted source with unchanged runtime configuration. Browser verification of the exact existing source-summary reply changed from one plain-text block/no tables to two real tables with correct headers,29bold elements, two headings, two lists and four cell line breaks; raw `<br>` text and page-wide horizontal overflow were absent. No new LLM turn, policy-content rewrite, database migration, credential change or commit/push was performed.
+
 ## 2026-11-04 — Guided planning form layout and searchable destinations
 
 - Styled the shared Anything else to consider field as a full-width, shallow rounded textarea with a short English-only placeholder. All five guided planning workflows use this same field. Removed the nested fixed-height form scrollbar so fields and country menus can expand naturally.

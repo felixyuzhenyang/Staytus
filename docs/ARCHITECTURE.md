@@ -57,6 +57,8 @@ Calendar export creates an Apple-compatible `.ics` with an alarm; separately aut
 
 ## The one chat path
 
+The frontend renders all assistant replies and restored history through the same Markdown/GFM component, including planning narratives. Tables have a bounded scroll region; headings, nested lists, links and code retain their structure. Bare HTML line-break nodes become safe line breaks, while other raw HTML and unsafe URLs are disabled. Model-provided images are displayed as text without automatic network loads. User messages remain plain text; rendering does not regenerate a reply or change its stored content.
+
 `POST /chat` accepts a message and optional local conversation ID. It resolves the owner from the session and stores the IBM thread ID privately. A browser cannot choose another person's provider thread. The backend retrieves relevant source evidence and calls `OrchestrateRuntime`.
 
 `POST /chat/new` creates an owned empty conversation without calling IBM. The first turn starts a fresh provider thread and receives no turns or temporary planning scenario from the old conversation. `GET /chat/history` also restores explicitly started empty conversations, so a reload cannot resurrect an older topic. Alembic `20261104_0004` persists the per-conversation `hide_assistant_updates` flag; existing chats default false. The previous conversation's bounded history is preserved, not exposed through a new history-management UI. Refresh data reloads saved data without starting or deleting a conversation.

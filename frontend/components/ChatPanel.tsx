@@ -6,7 +6,7 @@ import { date, label } from "@/lib/types";
 import { availableWorkflows } from "@/lib/planning-workflows";
 import GuidedPlanningForm from "./GuidedPlanningForm";
 import ChatPlanActions from "./ChatPlanActions";
-import PlanNarrative from "./PlanNarrative";
+import MessageMarkdown from "./MessageMarkdown";
 import AssistantUpdates from "./AssistantUpdates";
 import AssistantUpdateSettings from "./AssistantUpdateSettings";
 import AssistantUpdateHistory from "./AssistantUpdateHistory";
@@ -49,7 +49,7 @@ export default function ChatPanel({ messages, updates, unread, history, historyL
         <div className="message-content">
           <span className="message-author">{message.role === "assistant" ? "Staytus" : "You"}</span>
           {message.planning && <h3 className="plan-message-title">{message.planning.title}</h3>}
-          {message.planning ? <PlanNarrative text={message.message} /> : <p className="message-text">{message.message}</p>}
+          {message.role === "assistant" ? <MessageMarkdown text={message.message} /> : <p className="message-text">{message.message}</p>}
           {!!message.tools?.length && <div className="tool-tags">{message.tools.map((tool, key) => <span key={key}><CheckCircle2 size={12} />{typeof tool === "string" ? tool : typeof tool === "object" && tool ? String((tool as Record<string, unknown>).name || (tool as Record<string, unknown>).tool || "Assistant tool") : "Assistant tool"}</span>)}</div>}
           {message.citations?.map((citation, key) => <a key={key} className="source-card" href={citation.url || citation.source_url} target="_blank" rel="noreferrer"><BookOpen size={15} /><span><strong>{citation.title || "Source reference"}</strong><small>{citation.status ? label(citation.status) : "Source snapshot"}{citation.verified_at ? ` · ${date(citation.verified_at)}` : ""}</small></span><ExternalLink size={13} /></a>)}
           {message.planning && <ChatPlanActions plan={message.planning} profileVersion={profile.version} busy={locked} onRemind={onRemind} />}
