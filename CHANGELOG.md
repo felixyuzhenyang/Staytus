@@ -1,5 +1,11 @@
 # Staytus change log
 
+## 2026-11-04 — Searchable profile country selector
+
+- Replaced the shared onboarding/Profile nationality text field with an accessible, searchable country/region dropdown. Added a checked-in249-entry ISO3166-1 code list with English/Chinese CLDR display labels, common-name aliases and code search; no third-party runtime lookup or new package is required.
+- Search text is separate from the saved nationality: only selecting an option changes the submitted field. Added keyboard navigation, Enter/Escape handling, outside dismissal, empty-results feedback and required-field validation. Existing nonstandard saved values remain selectable until explicitly replaced; no existing record or database schema is rewritten.
+- Verification:249unique codes/names, the existing64-character field limit, English/Chinese/code/alias queries, empty results and exact-match ranking passed direct data checks. All579backend tests passed/3opt-in PostgreSQL skips, with frontend type checking,13-tool OpenAPI and production builds passing. Deployed allowlisted source to the existing domain with unchanged runtime configuration and no migration.
+- Public browser QA used one disposable fictional account: required-country validation blocked submission, unmatched search plus Enter did not submit or become a value, Chinese search and arrow/Enter selection saved China during onboarding, Profile restored China, UK search selected/saved United Kingdom, and a full reload restored it. Escape/outside dismissal preserved the prior selection; USA search matched United States. Desktop/mobile screenshots were inspected;390pxhad no horizontal overflow. Signed out, closed the isolated browser and deleted the exact synthetic account/owned records. Real profiles, mailbox/calendar permissions and notification subscriptions were not changed. No commit/push was performed this round.
 ## 2026-11-04 — Container CI schema check
 
 - Inspected actual GitHub run41951227431/job126995375757forcommitf55943d. Backend, frontend and PostgreSQL jobs passed, and both Docker images built successfully. The final container smoke failed only at the outdated `len(metadata().tables)==25` assertion; proactive assistant persistence legitimately increased the registered model tables to27.

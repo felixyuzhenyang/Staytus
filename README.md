@@ -22,7 +22,7 @@ Fresh installations default to SQLite and need an explicit `make migrate` before
 
 ## Implemented behavior
 
-- Registration/login, hashed passwords and sessions, profile onboarding/editing and account isolation.
+- Registration/login, hashed passwords and sessions, profile onboarding/editing and account isolation. Onboarding and Profile share a searchable country/region selector with local English/Chinese/code/alias matching and keyboard navigation; search text is never submitted as nationality.
 - Optional structured OPT/EAD, J-1 training/scholar, extension, admission and travel details with conditional forms, stage-aware checklists and record-conflict checks. Application progress changes internal preparation targets in the existing reminder pipeline. Guided Assistant forms generate real LLM/RAG personal plans with temporary scenario facts, restored conversation history and approval-gated calendar reminders. See [personal workflows](docs/PERSONAL_WORKFLOWS.md); formal legal windows remain separate work.
 - Proactive, event-triggered watsonx.ai messages stored for the next visit, without a user question or active login. Daily generation uses saved profile facts, scoped official evidence and actual planning/source-change events. Includes language/on-off settings, unread/read state, manual event checks and durable deduplication/retry limits. No template fallback, mailbox sharing or automatic action execution. See [proactive messages](docs/PROACTIVE_ASSISTANT.md).
 - Independent dashboard/chat/policy/approval/profile/connections/updates/audit components.

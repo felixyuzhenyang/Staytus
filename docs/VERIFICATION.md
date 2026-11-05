@@ -1,5 +1,11 @@
 # Current verification — November 4, 2026 (America/New_York)
 
+## Searchable profile country selector — 2026-11-04
+
+Verified249unique country/region codes and labels, compatibility with the existing64-character nationality field, English/Chinese/code/alias filtering and exact-match ranking. All579backend tests passed/3opt-in PostgreSQL skips, plus TypeScript,13-tool OpenAPI and frontend production builds. No schema migration or new runtime service was required.
+
+One disposable public account completed onboarding using Chinese search, arrow navigation and Enter to choose China. Blank nationality blocked submission, and unmatched search plus Enter neither submitted nor became the saved nationality. Profile restored China, UK search selected/saved United Kingdom, and the same value returned after a full reload. Escape and outside dismissal preserved the previous selection; USA matched United States. Inspected desktop and390pxmobile screenshots with no horizontal overflow, signed out/closed the isolated browser and cleaned up the exact fictional account/owned records. Existing real-user records were not edited. Ignored screenshots: `output/playwright/country-picker-*.png`.
+
 ## Container CI correction — 2026-11-04
 
 GitHub run41951227431forcommitf55943dpassed backend/frontend/PostgreSQL and both Docker builds. Only the installed-package smoke failed: its frozen25-table assertion no longer matched the27registered tables after proactive assistant persistence was added. Replaced it with `python -m app.container_checks`: required-table/config checks and actual in-memory SQLite migrations compared with the packaged ORM, with container networking disabled. It never connects to the runtime database or starts workers. Three new cases include real rejection of an unmigrated registered table and absent configuration.
