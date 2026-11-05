@@ -195,7 +195,7 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
     await action("profile", async requestSignal => {
       const result = await api<Profile>("profile", { method: "PATCH", body: JSON.stringify(data), signal: requestSignal });
       if (requestSignal.aborted) return;
-      callbacks.current.onProfileUpdated(result); setRevision(value => value + 1); setToast("Profile saved. Your timeline will use the updated dates.");
+      callbacks.current.onProfileUpdated(result); setRevision(value => value + 1); setToast("Profile saved. Your workspace is up to date.");
     });
   }
   async function readAssistantUpdate(id: string) {

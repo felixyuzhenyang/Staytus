@@ -88,6 +88,9 @@ svg { flex-shrink:0; }
 .avatar.small { width:32px;height:32px;font-size:12px; }
 .avatar.mini { width:29px;height:29px;font-size:11px; }
 .avatar.bot { background:var(--primary-soft);color:var(--primary); }
+.avatar-link { padding:0;border:0;cursor:pointer;transition:box-shadow .15s; }
+.avatar-link:hover { box-shadow:0 0 0 3px var(--primary-tint); }
+.avatar-link:focus-visible { outline:2px solid var(--primary);outline-offset:3px; }
 .panel { border:1px solid var(--line);background:var(--paper);border-radius:var(--radius); }
 .note { display:flex;gap:10px;padding:15px;border-radius:10px;background:var(--primary-tint);color:var(--muted);align-items:flex-start; }
 .note p { font-size:11px;line-height:1.7; }

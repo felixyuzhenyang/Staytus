@@ -32,7 +32,7 @@ export function useSession() {
 
   function acceptSession(next: AuthState) { ++epoch.current; request.current?.abort(); setSession(next); setError(""); setLoading(false); }
   function expireSession() { ++epoch.current; request.current?.abort(); setSession(null); setError(""); setLoading(false); }
-  function updateProfile(profile: Profile) { setSession(current => current ? { ...current, profile, needs_onboarding: false } : null); }
+  function updateProfile(profile: Profile) { setSession(current => current ? { ...current, account: { ...current.account, name: profile.name }, profile, needs_onboarding: false } : null); }
   async function logout() {
     try { await api("auth/logout", { method: "POST", body: "{}" }); } finally { expireSession(); }
   }

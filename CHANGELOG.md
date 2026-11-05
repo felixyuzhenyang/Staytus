@@ -1,5 +1,11 @@
 # Staytus change log
 
+## 2026-11-04 — Profile avatar links and editable display names
+
+- Made the top-bar and sidebar circular avatars accessible buttons opening My Profile, with keyboard focus and current-page labels. Renamed the profile and assistant navigation/page headings to My Profile and My Assistant.
+- Added a required, bounded Display name field when editing an existing profile. Reused the authenticated profile PATCH that already trims/validates the name and updates both Account and Profile in one transaction. Updated client session account state from the saved profile so names, welcome text and avatar initials refresh immediately; registration email, login identifier and password behavior are unchanged.
+- Validation:579backend tests passed/3opt-in PostgreSQL skips, including existing profile/account name-sync coverage; frontend type checking,13-tool OpenAPI validation and production build passed. Published allowlisted source with existing runtime settings. An isolated browser using a fictional account verified both avatar routes, whitespace-name rejection, saved-name/initial/welcome updates without refresh, reload persistence, and persistence after signing in again with the original email/password. Verified Account/Profile names match, signed out, closed the test tab and removed its exact synthetic account/owned records plus temporary login fixture. Real-user names, mailbox connections, passwords and credentials were not changed; no database migration or commit/push was performed.
+
 ## 2026-11-04 — Render assistant Markdown messages
 
 - Traced the Latest policy sources formatting issue to ordinary assistant replies being rendered as a plain-text paragraph. Replaced that path and the limited planning-only line parser with a shared React Markdown/GFM renderer for all assistant replies. Stored history and message contents remain unchanged; user messages remain plain text.

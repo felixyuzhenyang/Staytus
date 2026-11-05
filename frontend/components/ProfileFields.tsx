@@ -7,6 +7,7 @@ import CountrySelect from "./CountrySelect";
 export default function ProfileFields({ profile, disabled = false }: { profile?: Partial<Profile>; disabled?: boolean }) {
   const [category, setCategory] = useState(profile?.status_type || "F-1");
   return <><div className="form-grid">
+    {profile && <label>Display name<input name="name" defaultValue={profile.name || ""} autoComplete="nickname" required maxLength={100} pattern=".*\S.*" title="Enter a name containing at least one non-space character" disabled={disabled} /><small className="field-hint">The name shown in your Staytus workspace.</small></label>}
     <label>School<input name="school" defaultValue={profile?.school || "University of Pennsylvania"} required maxLength={100} disabled={disabled} /><small className="field-hint">Penn procedures are supported first. Other schools can save a profile, but school-specific actions may be unavailable.</small></label>
     <label>Current category<select name="status_type" value={category} onChange={event => setCategory(event.target.value)} disabled={disabled}><option>F-1</option><option>J-1 student</option><option>J-1 scholar</option></select><small className="field-hint">Changing category resets details that apply only to your previous category.</small></label>
     <CountrySelect defaultValue={profile?.nationality || ""} disabled={disabled} />
