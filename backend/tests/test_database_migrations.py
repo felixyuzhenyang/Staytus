@@ -66,6 +66,31 @@ def test_empty_sqlite_can_downgrade_and_upgrade_in_isolation(tmp_path):
     engine.dispose()
 
 
+def test_new_chat_upgrade_preserves_conversations_and_updates(tmp_path):
+    from sqlalchemy.orm import Session
+    from app.chat_models import Conversation
+    from support import seed_fixtures
+    engine = make_engine(f"sqlite:///{tmp_path}/chat-upgrade.db")
+    upgrade_database(engine)
+    with Session(engine) as db:
+        seed_fixtures(db)
+        db.add(Conversation(id="existing-chat", account_id="account-mei-lin", thread_id="private-existing-thread",
+            history=[{"role": "user", "content": "Existing saved conversation"}]))
+        db.commit()
+    config = migration_config()
+    with engine.begin() as connection:
+        config.attributes["connection"] = connection
+        command.downgrade(config, "20261104_0003")
+    upgrade_database(engine)
+    with Session(engine) as db:
+        saved = db.get(Conversation, "existing-chat")
+        assert saved.history == [{"role": "user", "content": "Existing saved conversation"}]
+        assert saved.thread_id == "private-existing-thread" and saved.hide_assistant_updates is False
+    with engine.connect() as connection:
+        assert schema_differences(connection) == []
+    engine.dispose()
+
+
 def test_api_startup_does_not_bootstrap_an_unmigrated_database(tmp_path, monkeypatch):
     from app import main
     engine = make_engine(f"sqlite:///{tmp_path}/uninitialized.db")

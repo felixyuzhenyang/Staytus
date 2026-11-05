@@ -19,6 +19,8 @@ In **Your assistant → Proactive assistant updates**, choose English or Chinese
 
 On return, **Your assistant** displays an unread count and a clearly labelled **Updates from your assistant** section. Messages include the trigger explanation, personal relevance, proposed next steps, unresolved facts, source references and creation date. **Mark as read** persists per account. **Discuss this update** sends a user-requested follow-up with the update context to Orchestrate. While visible, the browser checks for newly saved messages every30seconds; it never calls the LLM merely to display them.
 
+**New chat** creates a clean conversation and hides inline proactive cards in that conversation, including after reload. It never deletes messages, marks them read, disables generation or changes subscriptions. The permanent **Assistant updates** button opens a history view inside the same Assistant page, with preferences, an account-wide unread count and **Load older updates**. The API uses a stable timestamp/ID cursor in owned20-message pages, allowing access beyond the recent20shown inline. History is newest-first; **Back to chat** restores the current conversation, and **Discuss this update** returns to it. Guided forms and **Latest policy sources** remain available before and after sending messages.
+
 These messages are stored under the account in Supabase. Email digests remain a separate existing reminder channel; no new mailbox-read permission or system-email send behavior is introduced by this feature. Creating a proactive message does not create a calendar event or submit an application.
 
 ## Deployment and verification

@@ -1,5 +1,19 @@
 # Current verification — November 4, 2026 (America/New_York)
 
+## Container CI correction — 2026-11-04
+
+GitHub run41951227431forcommitf55943dpassed backend/frontend/PostgreSQL and both Docker builds. Only the installed-package smoke failed: its frozen25-table assertion no longer matched the27registered tables after proactive assistant persistence was added. Replaced it with `python -m app.container_checks`: required-table/config checks and actual in-memory SQLite migrations compared with the packaged ORM, with container networking disabled. It never connects to the runtime database or starts workers. Three new cases include real rejection of an unmigrated registered table and absent configuration.
+
+Both current Linux/AMD64 images built locally, and the exact network-disabled installed-package check passed with27tables,23sources and migration head0004. Full checks passed579backend tests/3opt-in PostgreSQL skips, frontend type checking and13-tool OpenAPI validation; scoped lint passed. The corrected workflow has not yet run on GitHub because this round is awaiting the user's commit-notes review. The old commit's check is still failed; rerunning it unchanged would retain the obsolete assertion.
+
+## New chat and assistant-update history — 2026-11-04
+
+576backend tests passed with3opt-in PostgreSQL skips; TypeScript,13-tool OpenAPI, scoped lint and the production build passed. New tests verify fresh IBM context, preservation of the old conversation/proactive records, empty-new-chat restoration, authenticated ownership, stable45-record pagination with tied timestamps and additive migration defaults. The current Supabase revision is `20261104_0004`; a private read-only pre-upgrade snapshot was saved and old records were compared after upgrade. This new snapshot was not restore-tested.
+
+The existing public domain now has New chat, Refresh data, permanent planning/policy shortcuts and an in-page Assistant updates history. Two disposable public accounts verified differing real IBM thread IDs, preserved old chat content and cross-account denial. Browser checks confirmed old/inline messages disappear on New chat without changing the unread count, the clean conversation persists after data refresh and full reload, saved updates remain in history, Discuss returns to the current chat, and planning forms/policy queries remain available after chatting. Mobile390px inspection found no horizontal overflow. Exact test accounts/owned records were removed and the isolated browser was closed. No real profile/mailbox/calendar write was performed. Reports/screenshots stay ignored under `.local/vercel/chat-controls-verification.json`, `new-chat-migration.json` and `output/playwright/chat-controls-*.png`.
+
+These checks validate conversation lifecycle and presentation, not answer correctness. One ordinary Orchestrate follow-up invented meeting/location/interface details in the fictional case. No action was approved/executed; broader grounding/output-quality improvements remain outstanding.
+
 ## Proactive assistant messages — 2026-11-04
 
 570backend tests passed with3opt-in PostgreSQL skips, plus TypeScript,13-tool OpenAPI contract, scoped lint and the production frontend build. The22new cases cover event-driven/no-question generation, private ownership/read state, no-event/mail-only exclusions, deduplication, bounded retry/leases, changing inputs, real provider request shape, additive schema preservation, scoped manual checks and selected invalid-draft handling. The outbox tests use isolated synthetic data and provider doubles; live checks below are separate.

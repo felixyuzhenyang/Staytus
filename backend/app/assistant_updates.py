@@ -5,9 +5,9 @@ import re
 from datetime import UTC, timedelta
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
@@ -266,19 +266,41 @@ def run_assistant_once(factory=SessionLocal, *, provider=None, stamp=None, accou
     return result
 
 
+def update_json(db, row):
+    return {"id": row.id, "content": row.content, "citations": row.citations, "created_at": iso(row.generated_at),
+        "read_at": iso(row.read_at), "profile_version": row.profile_version, "outdated": not inputs_current(db, row),
+        "trigger_kinds": sorted({event["kind"] for event in row.events}), "generated_by": "watsonx.ai",
+        "model": row.model_id}
+
+
+def owned_updates(session):
+    return (AssistantUpdate.account_id == session.account_id,
+        AssistantUpdate.profile_id == session.profile_id, AssistantUpdate.state == "READY")
+
+
 def list_updates(db, session, *, limit=20):
     rows = db.scalars(select(AssistantUpdate).where(AssistantUpdate.account_id == session.account_id,
         AssistantUpdate.profile_id == session.profile_id, AssistantUpdate.state == "READY")
         .order_by(AssistantUpdate.generated_at.desc(), AssistantUpdate.id.desc()).limit(limit)).all()
-    return [{"id": row.id, "content": row.content, "citations": row.citations, "created_at": iso(row.generated_at),
-        "read_at": iso(row.read_at), "profile_version": row.profile_version, "outdated": not inputs_current(db, row),
-        "trigger_kinds": sorted({event["kind"] for event in row.events}), "generated_by": "watsonx.ai",
-        "model": row.model_id} for row in reversed(rows)]
+    return [update_json(db, row) for row in reversed(rows)]
 
 
 @router.get("")
-def get_updates(session: AuthSession = Depends(require_profile_session), db=Depends(get_db)):
-    return {"updates": list_updates(db, session)}
+def get_updates(before: str | None = Query(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
+                session: AuthSession = Depends(require_profile_session), db=Depends(get_db)):
+    conditions = owned_updates(session)
+    query = select(AssistantUpdate).where(*conditions)
+    if before:
+        pivot = db.scalar(select(AssistantUpdate).where(*conditions, AssistantUpdate.id == before))
+        if pivot is None:
+            raise HTTPException(404, "Assistant update not found")
+        query = query.where(or_(AssistantUpdate.generated_at < pivot.generated_at,
+            and_(AssistantUpdate.generated_at == pivot.generated_at, AssistantUpdate.id < pivot.id)))
+    rows = db.scalars(query.order_by(AssistantUpdate.generated_at.desc(), AssistantUpdate.id.desc()).limit(21)).all()
+    page = rows[:20]
+    unread = db.scalar(select(func.count()).select_from(AssistantUpdate).where(*conditions, AssistantUpdate.read_at.is_(None)))
+    return {"updates": [update_json(db, row) for row in reversed(page)],
+        "next_before": page[-1].id if len(rows) > 20 else None, "unread_count": unread}
 
 
 class AssistantPreferenceInput(BaseModel):

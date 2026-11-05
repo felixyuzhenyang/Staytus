@@ -214,7 +214,8 @@ def test_schema_migration_preserves_existing_preferences(tmp_path):
             digest_monthday=12, scheduled_frequency="weekly", lead_days=9, updated_at=now()))
     upgrade_database(engine)
     with engine.connect() as connection:
-        assert connection.scalar(text("select version_num from alembic_version")) == "20261104_0003"
+        from alembic.script import ScriptDirectory
+        assert connection.scalar(text("select version_num from alembic_version")) == ScriptDirectory.from_config(config).get_current_head()
         assert schema_differences(connection) == []
         saved = connection.execute(text("select assistant_enabled, assistant_language, digest_hour, lead_days, timezone, popup_enabled from notification_preferences where account_id='existing'")).one()
         assert tuple(saved) == (1, "en", 8, 9, "America/New_York", 0)

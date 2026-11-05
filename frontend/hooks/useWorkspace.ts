@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api-client";
-import type { AssistantPreferences, AssistantUpdate } from "@/lib/types";
+import type { AssistantPreferences, AssistantUpdate, AssistantUpdatePage, ChatHistory } from "@/lib/types";
 import type { Approval, AuditEvent, CalendarProvider, ChatMessage, ChatResponse, Connection, DashboardData, Deadline, MailMessage, OAuthCapability, PlanningRequest, Policy, Profile, Review, SourceStatus, Tab } from "@/lib/types";
 
 type Options = { onSessionExpired: () => void; onProfileUpdated: (profile: Profile) => void };
@@ -20,6 +20,9 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   const [mailboxLoaded, setMailboxLoaded] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [assistantUpdates, setAssistantUpdates] = useState<AssistantUpdate[]>([]);
+  const [assistantUnread, setAssistantUnread] = useState(0);
+  const [assistantHistory, setAssistantHistory] = useState<AssistantUpdatePage>({ updates: [], next_before: null, unread_count: 0 });
+  const [hideAssistantUpdates, setHideAssistantUpdates] = useState(false);
   const [assistantPreferences, setAssistantPreferences] = useState<AssistantPreferences | null>(null);
   const [selected, setSelected] = useState<Approval | null>(null);
   const [calendarDeadline, setCalendarDeadline] = useState<Deadline | null>(null);
@@ -31,6 +34,8 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   const [revision, setRevision] = useState(0);
   const conversation = useRef<string | undefined>(undefined);
   const historyLoaded = useRef(false);
+  const assistantHistoryLoaded = useRef(false);
+  const chatRevision = useRef(0);
   const requestLock = useRef(false);
   const lifecycle = useRef<AbortController | null>(null);
   const callbacks = useRef({ onSessionExpired, onProfileUpdated });
@@ -63,15 +68,20 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   useEffect(() => {
     const controller = new AbortController();
     let pending = false;
+    let firstLoad = true;
     async function loadUpdates() {
       if (pending || document.visibilityState === "hidden") return;
       pending = true;
       try {
         const [result, prefs] = await Promise.all([
-          api<{ updates: AssistantUpdate[] }>("assistant-updates", { signal: controller.signal }),
+          api<AssistantUpdatePage>("assistant-updates", { signal: controller.signal }),
           api<AssistantPreferences>("assistant-updates/preferences", { signal: controller.signal }),
         ]);
-        if (!controller.signal.aborted) { setAssistantUpdates(result.updates); setAssistantPreferences(prefs); }
+        if (!controller.signal.aborted) {
+          setAssistantUpdates(result.updates); setAssistantUnread(result.unread_count); setAssistantPreferences(prefs);
+          if (firstLoad && assistantHistoryLoaded.current) setAssistantHistory(result);
+          firstLoad = false;
+        }
       } catch (failure) { handleError(failure, controller.signal, "assistant"); }
       finally { pending = false; }
     }
@@ -80,7 +90,7 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
     const focus = () => void loadUpdates();
     document.addEventListener("visibilitychange", focus);
     return () => { controller.abort(); clearInterval(timer); document.removeEventListener("visibilitychange", focus); };
-  }, [handleError]);
+  }, [handleError, revision]);
   useEffect(() => {
     const controller = new AbortController();
     const options = { signal: controller.signal };
@@ -104,11 +114,13 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
       } else if (tab === "connections") {
         const [integrationResult, connectionResult] = await Promise.all([api<Record<string, unknown>>("integration-status", options), api<{ providers: Connection[] }>("connections", options)]);
         if (!controller.signal.aborted) { setIntegrations(integrationResult); setConnections(connectionResult.providers); }
-      } else if (tab === "assistant" && !historyLoaded.current && !requestLock.current) {
-        const result = await api<{ conversation_id?: string; messages: ChatMessage[] }>("chat/history", options);
-        if (!controller.signal.aborted && !requestLock.current && !conversation.current) {
-          conversation.current = result.conversation_id;
-          setMessages(previous => previous.length ? previous : result.messages);
+      } else if (tab === "assistant" && !requestLock.current) {
+        const version = chatRevision.current;
+        const result = await api<ChatHistory>("chat/history", options);
+        if (!controller.signal.aborted && !requestLock.current && version === chatRevision.current) {
+          conversation.current = result.conversation_id || undefined;
+          setMessages(result.messages);
+          setHideAssistantUpdates(result.hide_assistant_updates);
           historyLoaded.current = true;
         }
       }
@@ -131,8 +143,17 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
     if (!text || requestLock.current) return false;
     let completed = false;
     setTab("assistant");
-    setMessages(previous => [...previous, { role: "user", message: text }]);
+    chatRevision.current += 1;
     await action("chat", async requestSignal => {
+      if (!historyLoaded.current) {
+        const saved = await api<ChatHistory>("chat/history", { signal: requestSignal });
+        if (requestSignal.aborted) return;
+        conversation.current = saved.conversation_id || undefined;
+        setMessages(saved.messages);
+        setHideAssistantUpdates(saved.hide_assistant_updates);
+        historyLoaded.current = true;
+      }
+      setMessages(previous => [...previous, { role: "user", message: text }]);
       const answer = await api<ChatResponse>("chat", { method: "POST", body: JSON.stringify({ message: text, conversation_id: conversation.current, planning_request: planningRequest }), signal: requestSignal });
       if (requestSignal.aborted) return;
       if (answer.mode !== "orchestrate" || !answer.message?.trim()) throw new Error("The assistant did not return a verified Orchestrate response. Please check the service connection.");
@@ -142,6 +163,33 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
       completed = true;
     }, "assistant");
     return completed;
+  }
+  async function newChat(): Promise<boolean> {
+    if (requestLock.current) return false;
+    let completed = false;
+    chatRevision.current += 1;
+    await action("chat-new", async requestSignal => {
+      const saved = await api<ChatHistory>("chat/new", { method: "POST", signal: requestSignal });
+      if (requestSignal.aborted) return;
+      conversation.current = saved.conversation_id || undefined;
+      historyLoaded.current = true;
+      setMessages(saved.messages);
+      setHideAssistantUpdates(saved.hide_assistant_updates);
+      setToast("New chat started. Your previous conversation is saved; assistant updates remain in their history.");
+      completed = true;
+    }, "assistant");
+    return completed;
+  }
+  async function loadAssistantHistory(older = false) {
+    await action("assistant-history", async requestSignal => {
+      const before = older ? assistantHistory.next_before : null;
+      if (older && !before) return;
+      const page = await api<AssistantUpdatePage>(`assistant-updates${before ? `?before=${encodeURIComponent(before)}` : ""}`, { signal: requestSignal });
+      if (requestSignal.aborted) return;
+      setAssistantHistory(previous => ({ ...page, updates: older ? [...page.updates, ...previous.updates] : page.updates }));
+      assistantHistoryLoaded.current = true;
+      setAssistantUnread(page.unread_count);
+    }, "assistant");
   }
   async function saveProfile(data: Record<string, unknown>) {
     await action("profile", async requestSignal => {
@@ -153,7 +201,13 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   async function readAssistantUpdate(id: string) {
     await action("assistant-read", async requestSignal => {
       const result = await api<{ read_at: string }>(`assistant-updates/${id}/read`, { method: "POST", signal: requestSignal });
-      if (!requestSignal.aborted) setAssistantUpdates(previous => previous.map(item => item.id === id ? { ...item, read_at: result.read_at } : item));
+      if (!requestSignal.aborted) {
+        const mark = (items: AssistantUpdate[]) => items.map(item => item.id === id ? { ...item, read_at: result.read_at } : item);
+        setAssistantUpdates(mark);
+        setAssistantHistory(previous => ({ ...previous, updates: mark(previous.updates) }));
+        const current = await api<AssistantUpdatePage>("assistant-updates", { signal: requestSignal });
+        if (!requestSignal.aborted) { setAssistantUpdates(current.updates); setAssistantUnread(current.unread_count); }
+      }
     }, "assistant");
   }
   async function saveAssistantPreferences(data: AssistantPreferences) {
@@ -165,10 +219,12 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   async function checkAssistantUpdates() {
     await action("assistant-check", async requestSignal => {
       const result = await api<{ generated: number; queued: number; failed: number; model_configured?: boolean }>("assistant-updates/check", { method: "POST", signal: requestSignal });
-      const refreshed = await api<{ updates: AssistantUpdate[] }>("assistant-updates", { signal: requestSignal });
+      const refreshed = await api<AssistantUpdatePage>("assistant-updates", { signal: requestSignal });
       if (!requestSignal.aborted) {
         setAssistantUpdates(refreshed.updates);
-        setToast(result.generated ? "Your new AI assistant update is ready below." : result.failed || result.model_configured === false ? "AI generation is currently unavailable. Saved events will be checked again by the background service." : "No new eligible events to summarize. Daily monitoring will continue.");
+        setAssistantUnread(refreshed.unread_count);
+        setAssistantHistory(refreshed);
+        setToast(result.generated ? "Your new AI message is ready in Assistant updates." : result.failed || result.model_configured === false ? "AI generation is currently unavailable. Saved events will be checked again by the background service." : "No new eligible events to summarize. Daily monitoring will continue.");
       }
     }, "assistant");
   }
@@ -245,5 +301,5 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   }
   const closeApproval = useCallback(() => setSelected(null), []);
   const closeCalendar = useCallback(() => setCalendarDeadline(null), []);
-  return { tab, setTab, dashboard, policies, sources, approvals, events, reviews, integrations, connections, mailMessages, mailboxLoaded, messages, assistantUpdates, assistantPreferences, readAssistantUpdate, saveAssistantPreferences, checkAssistantUpdates, selected, calendarDeadline, createCalendar, closeCalendar, query, setQuery, error: errors[tab] || "", clearError: () => setErrors(previous => ({ ...previous, [tab]: "" })), toast, clearToast: () => setToast(""), loading, busy, refresh: () => setRevision(value => value + 1), sendChat, saveProfile, inspect, decide, remind, captureSources, connect, disconnect, readMail, setMailAgentAccess, closeApproval };
+  return { tab, setTab, dashboard, policies, sources, approvals, events, reviews, integrations, connections, mailMessages, mailboxLoaded, messages, assistantUpdates, assistantUnread, assistantHistory, hideAssistantUpdates, newChat, loadAssistantHistory, assistantPreferences, readAssistantUpdate, saveAssistantPreferences, checkAssistantUpdates, selected, calendarDeadline, createCalendar, closeCalendar, query, setQuery, error: errors[tab] || "", clearError: () => setErrors(previous => ({ ...previous, [tab]: "" })), toast, clearToast: () => setToast(""), loading, busy, refresh: () => setRevision(value => value + 1), sendChat, saveProfile, inspect, decide, remind, captureSources, connect, disconnect, readMail, setMailAgentAccess, closeApproval };
 }

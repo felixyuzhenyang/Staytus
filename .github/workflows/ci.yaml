@@ -62,10 +62,4 @@ jobs:
       - run: docker build -f backend/Dockerfile -t staytus-backend:check .
       - run: docker build -f frontend/Dockerfile -t staytus-frontend:check .
       - name: Check installed migrations and config without starting workers
-        run: >-
-          docker run --rm --entrypoint python staytus-backend:check -c
-          "from app.schema import metadata; from app.source_registry import load_sources,load_school;
-          from app.database_migrations import migration_config;
-          from alembic.script import ScriptDirectory;
-          assert len(metadata().tables)==25; assert len(load_sources())>=23;
-          assert load_school()['id']=='penn'; assert ScriptDirectory.from_config(migration_config()).get_current_head()"
+        run: docker run --rm --network none --entrypoint python staytus-backend:check -m app.container_checks

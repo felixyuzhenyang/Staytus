@@ -100,12 +100,24 @@ def _grounding(db: Session, session: AuthSession, message: str, planning_request
 
 @router.get("/chat/history")
 def chat_history(session: AuthSession = Depends(require_profile_session), db: Session = Depends(get_db)):
-    conversation = db.scalar(select(Conversation).where(Conversation.account_id == session.account_id, Conversation.thread_id.is_not(None))
+    conversation = db.scalar(select(Conversation).where(Conversation.account_id == session.account_id,
+        or_(Conversation.thread_id.is_not(None), Conversation.hide_assistant_updates.is_(True)))
         .order_by(Conversation.created_at.desc(), Conversation.id.desc()).limit(1))
     return {"conversation_id": conversation.id if conversation else None,
+        "hide_assistant_updates": bool(conversation and conversation.hide_assistant_updates),
         "messages": [{"role": row["role"], "message": row["content"],
             **{key: row[key] for key in ("planning", "citations") if key in row}}
             for row in conversation.history if row.get("role") in {"user", "assistant"}] if conversation else []}
+
+
+@router.post("/chat/new")
+def new_chat(session: AuthSession = Depends(require_profile_session), db: Session = Depends(get_db)):
+    # Persist the empty conversation too: a reload must not reopen the old one.
+    # The first message starts a new IBM thread; no old turns/scenario are copied.
+    conversation = Conversation(account_id=session.account_id, history=[], hide_assistant_updates=True)
+    db.add(conversation)
+    db.commit()
+    return {"conversation_id": conversation.id, "messages": [], "hide_assistant_updates": True}
 
 
 @router.post("/chat")
