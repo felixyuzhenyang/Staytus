@@ -57,6 +57,10 @@ export type GuidedPlan = { workflow: PlanningWorkflow; title: string; profile_ve
   record_checks: { id: string; message: string; state: string }[];
   missing_information: { field: string; question: string }[]; sources: WorkflowSource[] };
 export type ChatResponse = Omit<ChatMessage, "role"> & { mode: string; conversation_id?: string; thread_id?: string };
+export type AssistantUpdate = { id: string; created_at: string; read_at: string | null; outdated: boolean;
+  profile_version: number; trigger_kinds: string[]; citations: Citation[];
+  content: { title: string; summary: string; why_it_matters: string; next_steps: string[]; questions: string[]; omitted_unverified_details?: boolean } };
+export type AssistantPreferences = { enabled: boolean; language: "en" | "zh"; active?: boolean; schedule?: string };
 export type Connection = {
   provider: string; configured: boolean; connected: boolean; email?: string; scopes?: string[]; last_sync_at?: string;
   agent_access?: boolean;

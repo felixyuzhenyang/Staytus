@@ -284,6 +284,28 @@ svg { flex-shrink:0; }
 .prompt-grid button strong,.prompt-grid button small { display:block; }
 .prompt-grid button small { margin-top:5px;color:var(--muted);font-size:9px;font-weight:400;line-height:1.7; }
 .plan-message-title { font-size:14px;margin:8px 0 12px; }
+.assistant-preferences { margin:0 19px;padding:12px 0;border-bottom:1px solid var(--line);font-size:10px;color:var(--muted); }
+.assistant-preferences summary { cursor:pointer;font-weight:600; }
+.assistant-preferences p { line-height:1.8;margin:10px 0; }
+.assistant-preferences>div { display:flex;align-items:center;gap:20px;flex-wrap:wrap; }
+.assistant-preferences label { display:flex;align-items:center;gap:8px;font-size:10px; }
+.assistant-preferences input[type=checkbox] { width:15px;height:15px;accent-color:var(--primary); }
+.assistant-preferences select { width:auto;padding:5px; }
+.assistant-updates { margin:18px 0; }
+.chat-messages:has(.assistant-updates) .chat-welcome { display:none; }
+.assistant-update-heading { display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--primary);margin-bottom:12px; }
+.assistant-update-heading>span { font-size:9px;color:var(--muted); }
+.assistant-update { border:1px solid var(--primary-border);border-radius:12px;margin:12px 0;background:var(--primary-tint); }
+.assistant-update.read { background:var(--surface);border-color:var(--line); }
+.assistant-update>summary { padding:15px;cursor:pointer;list-style:none; }
+.assistant-update>summary>span { display:flex;align-items:center;gap:8px;font-size:12px; }
+.assistant-update>summary small { display:block;font-size:9px;color:var(--muted);margin-top:6px; }
+.assistant-update-body { padding:0 16px 17px;font-size:12px;line-height:1.95;overflow-wrap:anywhere; }
+.assistant-update-body h4 { font-size:12px;margin:15px 0 6px; }
+.assistant-update-body ol,.assistant-update-body ul { padding-left:20px; }
+.assistant-update-body>.muted { font-size:10px;margin:12px 0; }
+.assistant-update-actions { display:flex;gap:15px;align-items:center;flex-wrap:wrap;margin-top:15px; }
+.assistant-unread { margin-left:auto;border-radius:20px;min-width:19px;padding:2px 5px;background:var(--red-soft);color:var(--red-ink);font-size:9px; }
 .plan-narrative { font-size:12px;line-height:1.95;overflow-wrap:anywhere; }
 .plan-narrative h4 { font-size:13px;margin:19px 0 9px; }
 .plan-narrative p { margin:7px 0; }

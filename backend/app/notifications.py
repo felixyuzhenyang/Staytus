@@ -621,6 +621,8 @@ def run_notifications_worker(stop_event: threading.Event, interval_seconds=60):
         try:
             if NotificationSettings().notification_worker_enabled:
                 run_notifications_once()
+                from app.assistant_updates import run_assistant_once
+                run_assistant_once()
         except Exception:
             # Do not log database/provider exception text containing recipient data.
             import logging

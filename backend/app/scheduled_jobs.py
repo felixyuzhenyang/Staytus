@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from fastapi import APIRouter, Header, HTTPException
 from sqlalchemy import text
 
+from app.assistant_updates import run_assistant_once
 from app.db import engine
 from app.mail_monitor import run_mail_monitor_once
 from app.notifications import run_notifications_once
@@ -75,3 +76,9 @@ def reminders_job(authorization: str = Header(default="")):
 def mail_job(authorization: str = Header(default="")):
     require_scheduler(authorization)
     return execute_job("mail", run_mail_monitor_once)
+
+
+@router.get("/assistant")
+def assistant_job(authorization: str = Header(default="")):
+    require_scheduler(authorization)
+    return execute_job("assistant", run_assistant_once)

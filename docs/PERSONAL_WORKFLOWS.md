@@ -34,7 +34,7 @@ Live testing showed that this tenant could prioritize tool-derived saved facts o
 
 Successful user/assistant turns, structured plan metadata and source references persist in the existing account-owned conversation JSON; no schema migration or extra model credential is needed. `GET /chat/history` restores the latest successful conversation on a return visit. Follow-up questions keep the temporary scenario while its base profile version is current. Profile changes invalidate that scenario and disable old calendar buttons. Temporary plan details do not automatically change the scheduled email-reminder pipeline: save them in Profile for recurring monitoring. Conversation history currently retains up to40turns; this is not a separate permanent plan archive.
 
-Do not label ordinary travel as an I-20 visa application: the workflow distinguishes a school document/travel endorsement from an entry-visa application. Source status and blocked/unavailable captures remain visible; retrieval does not prove comprehensive coverage. Proactive LLM messages remain separate work below.
+Do not label ordinary travel as an I-20 visa application: the workflow distinguishes a school document/travel endorsement from an entry-visa application. Source status and blocked/unavailable captures remain visible; retrieval does not prove comprehensive coverage. Proactive LLM messages are implemented separately below.
 
 ### Try it on the public website
 
@@ -42,14 +42,14 @@ Open https://mystaytus.vercel.app and sign in, then choose **Assistant → Plan 
 
 Operator probe: `backend/.venv/bin/python scripts/verify_guided_planning.py --live --confirm-synthetic-test`. It creates only fictional accounts, tests real LLM/RAG plans and export approval, checks account isolation and removes exact test rows. `--keep-ui-fixture` retains temporary test accounts for visual QA; clean them with the same command plus `--cleanup-fixture` afterwards. It does not connect or write a real provider calendar.
 
-## Feasible next increment: proactive assistant messages (not implemented yet)
+## Proactive assistant messages (implemented)
 
-A web page does not need to be open for the server to create a message. Use the existing cloud schedule and durable reminders as event producers, then add a separate message-generation outbox:
+A web page does not need to be open for the server to create a message. A separate daily cloud job and durable generation outbox now use the existing planning/policy reminders as event producers:
 
 - A source-change or personal-planning event is matched to an owned profile. A content change is first labelled a detected change, not an effective legal policy or a confirmed personal impact.
 - A unique key binds account, event, profile version and policy version. A bounded, retryable generation job gets only permitted profile facts and official evidence; mailbox previews remain excluded without their separate consent.
 - The model writes a structured summary (what changed, why it may matter, unknown facts, next action, source links). Store it as a clearly labelled proactive assistant message with provenance. Do not insert a fabricated user question or trust generated HTML.
-- The conversation API returns these persisted messages on the next visit. Email can link to the message, subject to the existing subscription; no browser-open requirement is introduced.
+- The account-owned assistant-updates API returns persisted messages inside the chat area on the next visit, with unread status and a discussion action. Existing email digests remain separate; this iteration does not change email content or send a new email.
 - On profile/source changes, invalidate stale generation work. Apply idempotency, token budgets and batching so each website edit does not trigger every user's LLM call. Never execute a calendar/email/application action because a background summary requested it.
 
-No new multi-agent deployment is required for either increment. The server owns events, authorization and persistence; Orchestrate/model calls generate explanations and propose permitted actions. These features are assessed here as follow-up work, not claimed as delivered in the current profile/rule release.
+No new multi-agent deployment is required. The server owns events, authorization and persistence. Background explanations use the configured watsonx.ai model; interactive chat and user-requested follow-up continue through Orchestrate. See [proactive assistant operations](PROACTIVE_ASSISTANT.md) for the delivered limits and verification.

@@ -5,7 +5,7 @@ export class ApiError extends Error {
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   // Leave time for the proxy's 180-second chat budget to return a useful504.
   // Its signal is combined with the account/request lifecycle, never replaces it.
-  const timeoutSignal = path.split("?", 1)[0] === "chat" ? AbortSignal.timeout(195000) : null;
+  const timeoutSignal = ["chat", "assistant-updates/check"].includes(path.split("?", 1)[0]) ? AbortSignal.timeout(195000) : null;
   const signal = timeoutSignal ? AbortSignal.any([...(options.signal ? [options.signal] : []), timeoutSignal]) : options.signal;
   try {
     const response = await fetch(`/api/backend/${path}`, {

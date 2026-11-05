@@ -164,6 +164,10 @@
     {
       "path": "/internal/jobs/mail",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/internal/jobs/assistant",
+      "schedule": "0 16 * * *"
     }
   ]
 }

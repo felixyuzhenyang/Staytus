@@ -47,7 +47,7 @@ async function proxy(request: NextRequest, context: Context) {
   const requestPath = path.join("/");
   // Chat can include retrieval/model work before the Orchestrate request.
   // Keep refresh and ordinary API budgets separate from that longer path.
-  const timeoutSignal = AbortSignal.timeout(requestPath === "chat" ? 180000 : requestPath === "policies/refresh" ? 120000 : 45000);
+  const timeoutSignal = AbortSignal.timeout(["chat", "assistant-updates/check"].includes(requestPath) ? 180000 : requestPath === "policies/refresh" ? 120000 : 45000);
   try {
     const upstream = await fetch(`${backend.replace(/\/$/, "")}/api/v1/${path.join("/")}${request.nextUrl.search}`, {
       method: request.method,

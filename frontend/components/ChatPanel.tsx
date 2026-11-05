@@ -7,18 +7,29 @@ import { availableWorkflows } from "@/lib/planning-workflows";
 import GuidedPlanningForm from "./GuidedPlanningForm";
 import ChatPlanActions from "./ChatPlanActions";
 import PlanNarrative from "./PlanNarrative";
+import AssistantUpdates from "./AssistantUpdates";
+import AssistantUpdateSettings from "./AssistantUpdateSettings";
+import type { AssistantPreferences, AssistantUpdate } from "@/lib/types";
 import { Badge } from "./ui";
 
-export default function ChatPanel({ messages, busy, locked, error, profile, onSend, onRemind, onApprovals, onEditProfile }: { messages: ChatMessage[]; busy: boolean; locked: boolean; error: string; profile: Profile; onSend: (message: string, request?: PlanningRequest) => Promise<boolean>; onRemind: (target: Deadline) => void; onApprovals: () => void; onEditProfile: () => void }) {
+export default function ChatPanel({ messages, updates, preferences, onReadUpdate, onUpdatePreferences, onCheckUpdates, checking, busy, locked, error, profile, onSend, onRemind, onApprovals, onEditProfile }: { messages: ChatMessage[]; updates: AssistantUpdate[]; preferences: AssistantPreferences | null; onReadUpdate: (id: string) => Promise<void>; onUpdatePreferences: (data: AssistantPreferences) => Promise<void>; onCheckUpdates: () => Promise<void>; checking: boolean; busy: boolean; locked: boolean; error: string; profile: Profile; onSend: (message: string, request?: PlanningRequest) => Promise<boolean>; onRemind: (target: Deadline) => void; onApprovals: () => void; onEditProfile: () => void }) {
   const [input, setInput] = useState("");
   const [workflow, setWorkflow] = useState<PlanningWorkflow | null>(null);
   const messagesContainer = useRef<HTMLDivElement>(null);
-  useEffect(() => { const container = messagesContainer.current; if (container) container.scrollTop = container.scrollHeight; }, [messages.length, busy]);
+  useEffect(() => { const container = messagesContainer.current; if (container && (messages.length || busy)) container.scrollTop = container.scrollHeight; }, [messages.length, busy]);
+  useEffect(() => {
+    const container = messagesContainer.current;
+    const unread = container?.querySelectorAll<HTMLElement>(".assistant-update.unread");
+    const latest = unread?.[unread.length - 1];
+    if (container && latest) container.scrollTop += latest.getBoundingClientRect().top - container.getBoundingClientRect().top - 10;
+  }, [updates.length]);
   async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!input.trim() || locked) return; const message = input; setInput(""); await onSend(message); }
   return <section className="chat-layout"><div className="chat-main panel"><div className="chat-top"><span className="assistant-avatar"><Sparkles size={21} /></span><div><strong>Staytus Assistant</strong><small>Your plans, with your profile in context</small></div><Badge tone="blue">AI assistant</Badge></div>
     <div className="planning-shortcuts" aria-label="Start a personal plan">{availableWorkflows(profile).map(option => <button key={option.id} className={workflow === option.id ? "active" : ""} onClick={() => setWorkflow(option.id)} aria-pressed={workflow === option.id} disabled={locked}>{option.title}<ArrowRight size={13} /></button>)}</div>
+    {preferences && <AssistantUpdateSettings preferences={preferences} busy={locked} checking={checking} onSave={onUpdatePreferences} onCheck={onCheckUpdates} />}
     {workflow && <GuidedPlanningForm key={`${workflow}-${profile.version}`} workflow={workflow} profile={profile} busy={locked} error={error} onClose={() => setWorkflow(null)} onGenerate={onSend} />}
     <div ref={messagesContainer} className="chat-messages" aria-live="polite">{!messages.length && !workflow && <div className="chat-welcome"><span className="big-spark"><Sparkles size={32} /></span><h2>What would you like to plan?</h2><p>Choose a guided request above. Review your details, then get an AI plan grounded in official sources and your personal situation.</p><div className="prompt-grid">{availableWorkflows(profile).map(option => <button key={option.id} onClick={() => setWorkflow(option.id)} disabled={locked}><span><strong>{option.title}</strong><small>{option.description}</small></span><ArrowRight size={15} /></button>)}<button onClick={() => void onSend("What do the latest official sources say for my situation?")} disabled={locked}>Explore the latest policy sources<ArrowRight size={15} /></button></div></div>}
+      <AssistantUpdates updates={updates} busy={locked} onRead={onReadUpdate} onAsk={message => void onSend(message)} />
       {messages.map((message, index) => <div key={index} className={`chat-message ${message.role}`}>
         <span className={`avatar mini ${message.role === "assistant" ? "bot" : ""}`}>{message.role === "assistant" ? <Sparkles size={15} /> : profile.name[0]}</span>
         <div className="message-content">

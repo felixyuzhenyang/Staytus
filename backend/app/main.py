@@ -5,23 +5,26 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import chat_models, mail_monitor_models, notification_models, policy_models  # noqa: F401 - Register ORM tables.
 from app.api import router as api_router
-from app.config import get_settings
-from app.db import SessionLocal, engine, get_db
-from app.database_migrations import require_current_schema
-from app import policy_models, chat_models, notification_models, mail_monitor_models  # noqa: F401 - Register ORM tables.
-from app.integrations import connection_models  # noqa: F401 - Register OAuth tables.
-from app.identity import router as identity_router
+from app.assistant_updates import router as assistant_update_router
 from app.chat import router as chat_router
-from app.policy_routes import router as policy_router
-from app.source_registry import sync_source_registry
-from app.policy_pipeline import run_worker
-from app.tools import router as tool_router
+from app.config import get_settings
+from app.database_migrations import require_current_schema
+from app.db import SessionLocal, engine, get_db
+from app.identity import router as identity_router
+from app.integrations import connection_models  # noqa: F401 - Register OAuth tables.
 from app.integrations.connectors import router as connector_router
-from app.services import request_correlation
-from app.notifications import router as notification_router, run_notifications_worker, NotificationSettings
-from app.mail_monitor import router as mail_monitor_router, run_mail_monitor_worker, MailMonitorSettings
 from app.integrations.icloud_calendar import router as icloud_router
+from app.mail_monitor import MailMonitorSettings, run_mail_monitor_worker
+from app.mail_monitor import router as mail_monitor_router
+from app.notifications import NotificationSettings, run_notifications_worker
+from app.notifications import router as notification_router
+from app.policy_pipeline import run_worker
+from app.policy_routes import router as policy_router
+from app.services import request_correlation
+from app.source_registry import sync_source_registry
+from app.tools import router as tool_router
 
 
 @asynccontextmanager
@@ -93,3 +96,4 @@ app.include_router(icloud_router)
 app.include_router(connector_router)
 app.include_router(mail_monitor_router)
 app.include_router(notification_router)
+app.include_router(assistant_update_router)

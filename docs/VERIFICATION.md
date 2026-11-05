@@ -1,4 +1,14 @@
-# Current verification — November 3, 2026 (America/New_York)
+# Current verification — November 4, 2026 (America/New_York)
+
+## Proactive assistant messages — 2026-11-04
+
+570backend tests passed with3opt-in PostgreSQL skips, plus TypeScript,13-tool OpenAPI contract, scoped lint and the production frontend build. The22new cases cover event-driven/no-question generation, private ownership/read state, no-event/mail-only exclusions, deduplication, bounded retry/leases, changing inputs, real provider request shape, additive schema preservation, scoped manual checks and selected invalid-draft handling. The outbox tests use isolated synthetic data and provider doubles; live checks below are separate.
+
+Supabase upgraded from `20261103_0002` to additive `20261104_0003`, after a private read-only logical snapshot of the old26tables including migration metadata. Existing profile values and reminder preferences were compared before/after and preserved, and limited-runtime access plus model/schema matching passed. The new backup was not restore-tested this round.
+
+Two actual fictional users logged out before real watsonx.ai generation: there were zero active sessions and zero user chat turns. On return, each had one persisted private assistant message with3source references. Repeated processing and public manual checks produced no duplicates; cross-account read marking returned404. Earlier visual review exposed language/appointment and ungrounded interval mistakes; current-turn instructions, core-content checks, one bounded correction and explicitly flagged omission of unsupported individual suggestions were added. Corrected Chinese cases passed, but this is not a comprehensive legal-fact or answer-quality evaluation.
+
+After the final release, an actual public-cloud `/assistant-updates/check` call on an owned fictional profile generated1new LLM message with the current profile version, while the older message was marked outdated. Vercel project metadata confirmed26enabled daily definitions including `/internal/jobs/assistant` at16:00UTC; its unauthenticated endpoint returned401. This proves configuration, authorized generator reachability and controlled execution, not the first naturally elapsed daily cron run. No real mailbox/calendar write or personal profile update was performed. Private reports: `.local/vercel/proactive-verification.json`, `proactive-cloud-generation.json`, `proactive-cron-status.json` and `proactive-migration.json`. Browser read-state verification and exact test cleanup are recorded in CHANGELOG.
 
 ## Guided chat planning — 2026-11-03
 

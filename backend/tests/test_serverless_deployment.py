@@ -126,7 +126,7 @@ def test_source_upload_excludes_private_env_and_artifacts(tmp_path):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content)
     report = module.prepare(root, target)
-    assert report["cron_jobs"] == 3
+    assert report["cron_jobs"] == 4
     assert not any("sensitive-marker" in path.read_text() for path in target.rglob("*") if path.is_file())
     config = module.deployment_config(root)
     assert config["services"]["web"]["bindings"][0]["env"] == "BACKEND_URL"

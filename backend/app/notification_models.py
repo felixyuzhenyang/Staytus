@@ -13,6 +13,8 @@ class NotificationPreference(Base):
     account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), primary_key=True)
     in_app_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     popup_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    assistant_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    assistant_language: Mapped[str] = mapped_column(String(8), default="en", server_default="en")
     email_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     timezone: Mapped[str] = mapped_column(String(100), default="UTC")
     digest_hour: Mapped[int] = mapped_column(Integer, default=9)

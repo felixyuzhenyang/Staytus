@@ -28,15 +28,16 @@ const titles: Record<Tab, [string, string]> = {
   connections: ["Connect on your terms.", "Choose the services you want Staytus to access."],
 };
 
-export default function AppShell({ account, profile, role, tab, onTab, onLogout, onRefresh, loading, toast, onDismissToast, onSessionExpired, children }: {
+export default function AppShell({ account, profile, role, tab, onTab, onLogout, onRefresh, loading, toast, onDismissToast, onSessionExpired, children, assistantUnread = 0 }: {
   account: Account; profile: Profile; role: string; tab: Tab; onTab: (tab: Tab) => void;
   onLogout: () => Promise<void>; onRefresh: () => void; loading: boolean;
   toast: string; onDismissToast: () => void; children: ReactNode;
   onSessionExpired?: () => void;
+  assistantUnread?: number;
 }) {
   const firstName = account.name.split(" ")[0];
   const items = role === "reviewer" ? [...secondary, { id: "review" as Tab, label: "Review workspace", icon: ShieldCheck }] : secondary;
-  const navigationButton = ({ id, label, icon: Icon }: { id: Tab; label: string; icon: LucideIcon }) => <button key={id} type="button" className={`nav-item ${tab === id ? "active" : ""}`} aria-label={label} aria-current={tab === id ? "page" : undefined} onClick={() => onTab(id)}><Icon size={18} /><span>{label}</span></button>;
+  const navigationButton = ({ id, label, icon: Icon }: { id: Tab; label: string; icon: LucideIcon }) => <button key={id} type="button" className={`nav-item ${tab === id ? "active" : ""}`} aria-label={label} aria-current={tab === id ? "page" : undefined} onClick={() => onTab(id)}><Icon size={18} /><span>{label}</span>{id === "assistant" && assistantUnread > 0 && <small className="assistant-unread" aria-label={`${assistantUnread} unread assistant updates`}>{assistantUnread}</small>}</button>;
   return <div className="app-shell">
     <aside className="sidebar"><Logo /><div className="workspace-label">YOUR WORKSPACE</div><nav aria-label="Main navigation">{nav.map(navigationButton)}</nav>
       <div className="sidebar-bottom"><div className="quiet-card"><Globe2 size={22} /><strong>A world of possibilities.</strong><p>Make room for what comes next. We'll help with the details.</p></div><nav aria-label="Account navigation">{items.map(navigationButton)}</nav><div className="sidebar-profile"><span className="avatar small">{firstName[0]}</span><div><strong>{account.name}</strong><small>{profile.status_type} · {profile.school === "University of Pennsylvania" ? "Penn" : profile.school}</small></div><IconButton title="Sign out" onClick={() => void onLogout()}><LogOut size={16} /></IconButton></div></div>

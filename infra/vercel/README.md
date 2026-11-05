@@ -7,7 +7,7 @@ Current URL: **https://mystaytus.vercel.app**. Existing project `staytus`, Hobby
 - `web`: Next.js, including same-origin `/api/backend/*` BFF and server-side session cookie handling.
 - `api`: private FastAPI service reached by the web service binding, sharing the existing limited Supabase PostgreSQL role.
 - `gateway`: health plus `/tools/*`, requiring both the independent tool key and a short-lived signed user context.
-- `/internal/jobs/*`: 25 daily jobs protected by the separate production cron secret. PostgreSQL transaction advisory locks prevent concurrent duplicate runs. Application state/outcomes provide durable deduplication where supported; a lock is not a guarantee against every sequential repeat.
+- `/internal/jobs/*`: 26 daily jobs protected by the separate production cron secret, including proactive assistant generation. PostgreSQL transaction advisory locks prevent concurrent duplicate runs. Application state/outcomes provide durable deduplication where supported; a lock is not a guarantee against every sequential repeat.
 
 `vercel.json` routes the three services. Both Python entrypoints load public configuration and relocate a packaged public trust bundle while retaining `sslmode=verify-full`. They do not run migrations or background threads. Connections use NullPool rather than retaining a connection per warm function. The Supabase Data API remains disabled; user access remains through backend ownership checks.
 

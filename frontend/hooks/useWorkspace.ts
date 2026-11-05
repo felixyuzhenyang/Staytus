@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api-client";
+import type { AssistantPreferences, AssistantUpdate } from "@/lib/types";
 import type { Approval, AuditEvent, CalendarProvider, ChatMessage, ChatResponse, Connection, DashboardData, Deadline, MailMessage, OAuthCapability, PlanningRequest, Policy, Profile, Review, SourceStatus, Tab } from "@/lib/types";
 
 type Options = { onSessionExpired: () => void; onProfileUpdated: (profile: Profile) => void };
@@ -18,6 +19,8 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   const [mailMessages, setMailMessages] = useState<MailMessage[]>([]);
   const [mailboxLoaded, setMailboxLoaded] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [assistantUpdates, setAssistantUpdates] = useState<AssistantUpdate[]>([]);
+  const [assistantPreferences, setAssistantPreferences] = useState<AssistantPreferences | null>(null);
   const [selected, setSelected] = useState<Approval | null>(null);
   const [calendarDeadline, setCalendarDeadline] = useState<Deadline | null>(null);
   const [query, setQuery] = useState("");
@@ -57,6 +60,27 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
     if (failure instanceof ApiError && failure.status === 401) callbacks.current.onSessionExpired();
     else setErrors(previous => ({ ...previous, [errorTab]: failure instanceof Error ? failure.message : "Unable to complete this request." }));
   }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    let pending = false;
+    async function loadUpdates() {
+      if (pending || document.visibilityState === "hidden") return;
+      pending = true;
+      try {
+        const [result, prefs] = await Promise.all([
+          api<{ updates: AssistantUpdate[] }>("assistant-updates", { signal: controller.signal }),
+          api<AssistantPreferences>("assistant-updates/preferences", { signal: controller.signal }),
+        ]);
+        if (!controller.signal.aborted) { setAssistantUpdates(result.updates); setAssistantPreferences(prefs); }
+      } catch (failure) { handleError(failure, controller.signal, "assistant"); }
+      finally { pending = false; }
+    }
+    void loadUpdates();
+    const timer = setInterval(() => void loadUpdates(), 30000);
+    const focus = () => void loadUpdates();
+    document.addEventListener("visibilitychange", focus);
+    return () => { controller.abort(); clearInterval(timer); document.removeEventListener("visibilitychange", focus); };
+  }, [handleError]);
   useEffect(() => {
     const controller = new AbortController();
     const options = { signal: controller.signal };
@@ -125,6 +149,28 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
       if (requestSignal.aborted) return;
       callbacks.current.onProfileUpdated(result); setRevision(value => value + 1); setToast("Profile saved. Your timeline will use the updated dates.");
     });
+  }
+  async function readAssistantUpdate(id: string) {
+    await action("assistant-read", async requestSignal => {
+      const result = await api<{ read_at: string }>(`assistant-updates/${id}/read`, { method: "POST", signal: requestSignal });
+      if (!requestSignal.aborted) setAssistantUpdates(previous => previous.map(item => item.id === id ? { ...item, read_at: result.read_at } : item));
+    }, "assistant");
+  }
+  async function saveAssistantPreferences(data: AssistantPreferences) {
+    await action("assistant-preferences", async requestSignal => {
+      const result = await api<AssistantPreferences>("assistant-updates/preferences", { method: "PATCH", body: JSON.stringify({ enabled: data.enabled, language: data.language }), signal: requestSignal });
+      if (!requestSignal.aborted) { setAssistantPreferences(result); setToast("Assistant update preferences saved."); }
+    }, "assistant");
+  }
+  async function checkAssistantUpdates() {
+    await action("assistant-check", async requestSignal => {
+      const result = await api<{ generated: number; queued: number; failed: number; model_configured?: boolean }>("assistant-updates/check", { method: "POST", signal: requestSignal });
+      const refreshed = await api<{ updates: AssistantUpdate[] }>("assistant-updates", { signal: requestSignal });
+      if (!requestSignal.aborted) {
+        setAssistantUpdates(refreshed.updates);
+        setToast(result.generated ? "Your new AI assistant update is ready below." : result.failed || result.model_configured === false ? "AI generation is currently unavailable. Saved events will be checked again by the background service." : "No new eligible events to summarize. Daily monitoring will continue.");
+      }
+    }, "assistant");
   }
   async function inspect(approval: Approval) {
     await action("inspect", async requestSignal => {
@@ -199,5 +245,5 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   }
   const closeApproval = useCallback(() => setSelected(null), []);
   const closeCalendar = useCallback(() => setCalendarDeadline(null), []);
-  return { tab, setTab, dashboard, policies, sources, approvals, events, reviews, integrations, connections, mailMessages, mailboxLoaded, messages, selected, calendarDeadline, createCalendar, closeCalendar, query, setQuery, error: errors[tab] || "", clearError: () => setErrors(previous => ({ ...previous, [tab]: "" })), toast, clearToast: () => setToast(""), loading, busy, refresh: () => setRevision(value => value + 1), sendChat, saveProfile, inspect, decide, remind, captureSources, connect, disconnect, readMail, setMailAgentAccess, closeApproval };
+  return { tab, setTab, dashboard, policies, sources, approvals, events, reviews, integrations, connections, mailMessages, mailboxLoaded, messages, assistantUpdates, assistantPreferences, readAssistantUpdate, saveAssistantPreferences, checkAssistantUpdates, selected, calendarDeadline, createCalendar, closeCalendar, query, setQuery, error: errors[tab] || "", clearError: () => setErrors(previous => ({ ...previous, [tab]: "" })), toast, clearToast: () => setToast(""), loading, busy, refresh: () => setRevision(value => value + 1), sendChat, saveProfile, inspect, decide, remind, captureSources, connect, disconnect, readMail, setMailAgentAccess, closeApproval };
 }

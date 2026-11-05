@@ -15,7 +15,8 @@ def deployment_config(root):
     crons = [{"path": "/internal/jobs/policy/" + row["id"], "schedule": f"0 {2 + index // 4} * * *"}
              for index, row in enumerate(entries) if row.get("fetch_enabled")]
     crons += [{"path": "/internal/jobs/reminders", "schedule": "0 15 * * *"},
-              {"path": "/internal/jobs/mail", "schedule": "0 14 * * *"}]
+              {"path": "/internal/jobs/mail", "schedule": "0 14 * * *"},
+              {"path": "/internal/jobs/assistant", "schedule": "0 16 * * *"}]
     return {
         "$schema": "https://openapi.vercel.sh/vercel.json",
         "services": {
