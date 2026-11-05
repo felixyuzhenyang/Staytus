@@ -1,5 +1,11 @@
 # Staytus change log
 
+## 2026-11-04 — Readable action results
+
+- Replaced the raw execution-receipt JSON in action dialogs with readable result cards showing the reminder, date, alert and destination. Confirmed Google/Outlook/iCloud writes, calendar files awaiting download/import, in-progress actions and failed/unconfirmed outcomes have distinct labels and icons; only confirmed provider writes are shown as added to a calendar. Original approved details remain collapsed, and full receipts/audit records remain on the backend.
+- Added human-readable Action inbox badges and View result links, with result-specific completion messages. If an approval response is lost or returns a server error, retrieve the owned inbox before displaying a result; do not automatically repeat the write or leave an uncertain action's Approve button active. A recovered confirmed success supersedes the lost-response error.
+- Validation: actual component rendering and isolated hook-request scenarios passed for file export, Google/Outlook/iCloud success, uncertain/failed/in-progress states, hidden receipt identifiers, pending approvals and response-loss reconciliation without write retries.579backend tests passed/3opt-in PostgreSQL skips, frontend type checking and13-tool OpenAPI validation passed. Production build also passed. Published112allowlisted source files to the existing domain with unchanged runtime configuration. A disposable fictional account verified the real preview/approval-to-file-export flow, readable result details, the saved View result entry, and a downloadable .ics containing the correct date and alarm. Confirmed the full backend receipt remained stored, signed out and removed the exact synthetic account/owned records plus temporary login fixture. No real calendar write, backend business-rule, database-schema, credential change or GitHub commit/push was performed.
+
 ## 2026-11-04 — Profile avatar links and editable display names
 
 - Made the top-bar and sidebar circular avatars accessible buttons opening My Profile, with keyboard focus and current-page labels. Renamed the profile and assistant navigation/page headings to My Profile and My Assistant.

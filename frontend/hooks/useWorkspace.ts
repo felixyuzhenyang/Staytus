@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api-client";
+import { actionOutcome } from "@/lib/action-outcome";
 import type { AssistantPreferences, AssistantUpdate, AssistantUpdatePage, ChatHistory } from "@/lib/types";
 import type { Approval, AuditEvent, CalendarProvider, ChatMessage, ChatResponse, Connection, DashboardData, Deadline, MailMessage, OAuthCapability, PlanningRequest, Policy, Profile, Review, SourceStatus, Tab } from "@/lib/types";
 
@@ -236,10 +237,36 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   }
   async function decide(decision: "approve" | "reject") {
     if (!selected) return;
+    const approval = selected;
     await action(decision, async requestSignal => {
-      const result = await api<Approval>(`approvals/${selected.id}/${decision}`, { method: "POST", body: JSON.stringify({ payload_hash: selected.payload_hash }), signal: requestSignal });
+      let result: Approval;
+      try {
+        result = await api<Approval>(`approvals/${approval.id}/${decision}`, { method: "POST", body: JSON.stringify({ payload_hash: approval.payload_hash }), signal: requestSignal });
+      } catch (failure) {
+        if (!requestSignal.aborted && decision === "approve" && (!(failure instanceof ApiError) || failure.status >= 500)) {
+          // A lost write response is not proof of failure. Reconcile from the
+          // owned inbox without automatically sending the action again.
+          setSelected({ ...approval, status: "UNCONFIRMED", receipt: null });
+          try {
+            const saved = await api<{ approvals: Approval[] }>("approvals", { signal: requestSignal });
+            if (!requestSignal.aborted) {
+              setApprovals(saved.approvals);
+              const latest = saved.approvals.find(item => item.id === approval.id);
+              if (latest && !["PROPOSED", "PREVIEWED"].includes(latest.status)) {
+                setSelected(latest);
+                if (latest.status === "SUCCEEDED") {
+                  setRevision(value => value + 1);
+                  setToast(actionOutcome(latest)?.title || "Action completed.");
+                  return;
+                }
+              }
+            }
+          } catch { /* Keep the cautious result if status retrieval also fails. */ }
+        }
+        throw failure;
+      }
       if (requestSignal.aborted) return;
-      setSelected(result); setRevision(value => value + 1); setToast(decision === "approve" ? "Action processed. Check the execution receipt for the result." : "Action rejected.");
+      setSelected(result); setRevision(value => value + 1); setToast(decision === "approve" ? actionOutcome(result)?.title || "Action updated." : "Action rejected.");
     });
   }
   async function remind(deadline: Deadline) {
