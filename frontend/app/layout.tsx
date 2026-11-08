@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Staytus · Your next chapter, clearly",
+  title: "Staytus · International student planning",
   description: "A personal status and policy navigator for international students and scholars.",
 };
 

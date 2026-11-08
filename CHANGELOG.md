@@ -1,5 +1,20 @@
 # Staytus change log
 
+## 2026-11-08 — Replace promotional Overview copy
+
+- Replaced the Overview slogans with functional page and section titles, removed the non-interactive One step ahead decoration, and rewrote the banner description to explain Dates on your horizon, Recent policy updates and Priority checklists directly. Decorative rings, arrow and assistant entry remain; behavior and data are unchanged.
+- Validation: 579 backend tests passed with 3 opt-in PostgreSQL skips; frontend type checking, 13-tool OpenAPI validation, production build and whitespace checks passed.
+
+## 2026-11-08 — Prioritize Overview checklists
+
+- Renamed the Overview source-change preview to Recent policy updates and the profile guidance panel to Priority checklists. The panel now ranks items using deterministic attention signals—review-soon priority, saved-record conflicts, active application stages and planned travel—shows the two most relevant checklists first, and keeps the remaining items in a clearly labelled expandable section. No legal eligibility, deadline or source-review state is inferred by this presentation-only ranking.
+- Validation: 579 backend tests passed with 3 opt-in PostgreSQL skips; frontend type checking, 13-tool OpenAPI validation, production build and whitespace checks passed.
+
+## 2026-11-08 — Remove duplicate Overview next steps
+
+- Removed only the Your next steps list from Overview, retaining the date cards and their planning/reminder actions. Worth a look and Your situation and next questions remain; the update preview uses the available row width instead of leaving an empty grid column. Backend task/notification/workflow data and all other screens are unchanged.
+- Validation: 579 backend tests passed with 3 opt-in PostgreSQL skips; frontend type checking, 13-tool OpenAPI validation, production build and whitespace checks passed. Published the allowlisted source to the existing domain with unchanged runtime configuration. Live Overview verification found zero Your next steps headings, two retained date cards and See next steps buttons, and both Worth a look and Your situation and next questions present. The update preview fills its row without an empty column. Read-only browser inspection confirmed an existing pending source-change notice; no profile, approval, notification preference or provider operation was changed, and no new AI reply or GitHub commit/push was requested.
+
 ## 2026-11-08 — Direct profile setup heading
 
 - Replaced the onboarding slogan with Set up your profile and the eyebrow with PROFILE SETUP. Kept the existing program-details explanation. This is a copy-only change with no form, data, permission or workflow changes.
