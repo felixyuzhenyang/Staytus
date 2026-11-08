@@ -20,7 +20,7 @@ export default function Onboarding({ account, onComplete, onLogout }: { account:
     finally { if (!controller.signal.aborted) setBusy(false); }
   }
   return <main className="onboarding"><header className="onboarding-header"><Logo /><button className="text-button" disabled={busy} onClick={() => void onLogout()}>Sign out</button></header>
-    <section className="onboarding-copy"><span className="eyebrow">LET'S START WITH YOU</span><h1>A little context.<br />A clearer next step.</h1><p>Welcome, {account.name.split(" ")[0]}. Add your program details so your workspace can organize your dates and relevant sources.</p></section>
+    <section className="onboarding-copy"><span className="eyebrow">PROFILE SETUP</span><h1>Set up your profile</h1><p>Welcome, {account.name.split(" ")[0]}. Add your program details so your workspace can organize your dates and relevant sources.</p></section>
     <form className="panel onboarding-form" onSubmit={submit}><ErrorNotice message={error} /><ProfileFields disabled={busy} /><div className="note"><ShieldCheck size={18} /><p>You can update these details anytime. Connecting a mailbox is optional and requires its own authorization.</p></div><div className="form-actions"><button className="button primary" disabled={busy}>{busy ? <LoaderCircle className="spin" size={16} /> : <ArrowRight size={16} />}Create my workspace</button></div></form>
   </main>;
 }

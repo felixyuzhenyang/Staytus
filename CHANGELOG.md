@@ -1,5 +1,23 @@
 # Staytus change log
 
+## 2026-11-08 — Direct profile setup heading
+
+- Replaced the onboarding slogan with Set up your profile and the eyebrow with PROFILE SETUP. Kept the existing program-details explanation. This is a copy-only change with no form, data, permission or workflow changes.
+- Frontend type checking, production build and whitespace checks passed. Published the allowlisted source to the existing public domain with unchanged runtime configuration. A separate Edge tab verified the actual new heading and PROFILE SETUP label, preserved supporting copy, and absence of the old slogan; screenshot saved locally. Closed the verification tab without changing the user's original form, submitting onboarding or saving a profile. No backend/model/provider changes or GitHub commit/push occurred.
+
+## 2026-11-08 — Profile frequency and school explanations
+
+- Added a concise, accessible explanation below Update frequency: it controls reminder summaries after email opt-in, while policy checks use a separate schedule. Updated School helper text to state current Penn support and planned support for more universities.
+- Inspected the user's existing Edge tab and confirmed it was the public onboarding page, still serving the earlier release. DSO/EAD definitions and official links in the local revision are inside the optional OPT application/EAD groups; DSO application dates are intentionally absent for Considering.
+- Validation: 579 backend tests passed with 3 opt-in PostgreSQL skips, plus frontend type checking, 13-tool OpenAPI validation, production build and whitespace checks. Published 112 allowlisted source files to the existing public domain using unchanged runtime configuration and credentials. Checked the real onboarding page had no unsaved input before reloading, verified both new helper texts, and expanded the EAD and admission/adviser sections to show the actual official links. No onboarding submission, personal record save, provider consent, migration, email/calendar action or GitHub commit/push occurred. This release also publishes the preceding stage-aware Profile revision.
+
+## 2026-11-08 — Simpler stage-aware Profile form
+
+- Marked required profile basics and grouped optional academic, OPT application, EAD, extension, travel and admission details in collapsed sections shared by onboarding and My Profile. Considering OPT asks for stage/type without formal application dates; Preparing and later stages use clear requested-OPT-start labels, distinct from intended internship and approved EAD dates.
+- Added concise DSO/EAD explanations, contextual date hints and official Penn/USCIS links with accessible hint associations. EAD dates are explicitly for users with an issued OPT card, including an existing card during STEM-extension planning; submitting an initial application alone does not mean a card exists.
+- Preserved saved hidden dates and unsaved planning edits across OPT-stage changes. Shared graduation/travel dates remain outside the category-specific state lifetime. Existing backend validation, ownership, database schema and provider permissions are unchanged.
+- Validation: 579 backend tests passed with 3 opt-in PostgreSQL skips; frontend type checking, 13-tool OpenAPI validation, production build and whitespace checks passed. A separately bound local frontend/API with a disposable SQLite database verified Considering without dates, stage-specific application labels, concise linked explanations, keyboard date entry, stage-switch retention, save/reload persistence and collapsed defaults. Switching to J-1 retained a newly edited travel date and correctly cleared incompatible F-1 details on save. The test environment had no cloud credentials, model calls, background workers or delivery enabled. Browser signed out and closed; main development services and unrelated Outlook documentation were preserved. Changes remain local on main, with no public deployment or GitHub commit/push this round.
+
 ## 2026-11-04 — Readable action results
 
 - Replaced the raw execution-receipt JSON in action dialogs with readable result cards showing the reminder, date, alert and destination. Confirmed Google/Outlook/iCloud writes, calendar files awaiting download/import, in-progress actions and failed/unconfirmed outcomes have distinct labels and icons; only confirmed provider writes are shown as added to a calendar. Original approved details remain collapsed, and full receipts/audit records remain on the backend.
