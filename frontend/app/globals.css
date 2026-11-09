@@ -154,10 +154,16 @@ svg { flex-shrink:0; }
 .sidebar { position:fixed;inset:0 auto 0 0;width:230px;background:var(--surface);border-right:1px solid var(--line);padding:31px 19px 16px;display:flex;flex-direction:column;z-index:10;overflow-y:auto;scrollbar-width:thin; }
 .sidebar .logo { margin:0 12px 42px;font-size:28px; }
 .workspace-label { font-size:8px;letter-spacing:1.5px;font-weight:600;color:var(--muted);margin:0 15px 13px; }
-.nav-item { display:flex;align-items:center;gap:10px;padding:12px 14px;text-align:left;width:100%;background:transparent;color:var(--muted);font-size:11px;font-weight:500;border-radius:9px;margin-bottom:5px; }
+.nav-item { display:flex;align-items:flex-start;gap:10px;padding:11px 12px;text-align:left;width:100%;background:transparent;color:var(--muted);font-size:11px;font-weight:500;border-radius:9px;margin-bottom:5px; }
+.nav-item>svg { margin-top:2px; }
+.nav-copy { display:grid;gap:3px;min-width:0;line-height:1.35; }
+.nav-copy strong { color:inherit;font-size:11px;font-weight:650; }
+.nav-copy small { display:block;font-weight:400; }
+.nav-description { color:var(--muted);font-size:9px;line-height:1.5; }
 .nav-item:hover { background:var(--primary-tint);color:var(--primary); }
 .nav-item.active { background:var(--primary-soft);color:var(--primary);font-weight:700; }
 .nav-item.active svg { color:var(--primary); }
+.nav-item.active .nav-description,.nav-item:hover .nav-description { color:var(--primary);opacity:.82; }
 .nav-dot { width:4px;height:4px;border-radius:50%;background:var(--red);margin-left:auto; }
 .sidebar-bottom { margin-top:auto; }
 .quiet-card { margin:30px 6px 22px;background:var(--primary-tint);border-radius:13px;padding:17px;color:var(--muted);position:relative;overflow:hidden; }
@@ -322,7 +328,7 @@ svg { flex-shrink:0; }
 .assistant-update-body ol,.assistant-update-body ul { padding-left:20px; }
 .assistant-update-body>.muted { font-size:10px;margin:12px 0; }
 .assistant-update-actions { display:flex;gap:15px;align-items:center;flex-wrap:wrap;margin-top:15px; }
-.assistant-unread { margin-left:auto;border-radius:20px;min-width:19px;padding:2px 5px;background:var(--red-soft);color:var(--red-ink);font-size:9px; }
+.assistant-unread { margin-left:auto;border-radius:20px;min-width:19px;padding:2px 5px;background:var(--red-soft);color:var(--red-ink);font-size:9px;flex-shrink:0; }
 .message-markdown { min-width:0;font-size:12px;line-height:1.85;color:var(--muted);overflow-wrap:anywhere; }
 .message-markdown>:first-child { margin-top:5px; }
 .message-markdown>:last-child { margin-bottom:0; }

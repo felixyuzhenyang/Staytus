@@ -1,5 +1,12 @@
 # Staytus change log
 
+## 2026-11-08 — Explain sidebar destinations
+
+- Added a concise functional description to every main and account navigation destination. The Overview, Action inbox and Policy library wording follows the team feedback; Policy updates explicitly distinguishes captured changes and their review state from the source-browsing library. My Assistant, My Profile, Connections, Activity log and the reviewer-only workspace have matching explanations. Removed redundant category labels and enlarged the descriptions after visual review so each entry remains compact and readable.
+- Navigation buttons expose the same descriptions in accessible labels and hover titles. The collapsed mobile sidebar remains icon-only visually, so the narrow layout is unchanged while assistive technology retains each destination's purpose.
+- No route, permission, saved data or page behavior changed. Validation: 597 backend tests passed with 3 opt-in PostgreSQL skips; frontend type checking, 13-tool OpenAPI validation, production build and whitespace checks passed.
+- Published the allowlisted source to the existing Vercel production project with unchanged configuration and credentials. A disposable synthetic account verified all eight standard navigation descriptions, scroll access to account controls at a 720px viewport, and the existing 75px icon-only mobile sidebar at 390px with no horizontal overflow. The isolated browser was closed and the exact synthetic account and owned records were removed.
+
 ## 2026-11-08 — Organize the Policy Library by source authority
 
 - Grouped captured policy cards using the registered source authority rather than title or URL guessing. Penn and school guidance is separated from U.S. government guidance; unrecognized registered authorities have an explicit fallback group, and empty groups are omitted from filtered searches.

@@ -4,17 +4,19 @@ import type { Account, Profile, Tab } from "@/lib/types";
 import { IconButton, Logo } from "./ui";
 import NotificationCenter from "./NotificationCenter";
 
-const nav: { id: Tab; label: string; icon: LucideIcon }[] = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "assistant", label: "My Assistant", icon: Sparkles },
-  { id: "policies", label: "Policy library", icon: BookOpen },
-  { id: "approvals", label: "Action inbox", icon: FileCheck2 },
-  { id: "updates", label: "Policy updates", icon: Bell },
+type NavigationItem = { id: Tab; label: string; description: string; icon: LucideIcon };
+
+const nav: NavigationItem[] = [
+  { id: "overview", label: "Overview", description: "Review and track your next steps.", icon: LayoutDashboard },
+  { id: "assistant", label: "My Assistant", description: "Ask questions and build plans with your profile in context.", icon: Sparkles },
+  { id: "policies", label: "Policy library", description: "Browse official sources and school guidance by topic.", icon: BookOpen },
+  { id: "approvals", label: "Action inbox", description: "Review and download or approve actions prepared for you.", icon: FileCheck2 },
+  { id: "updates", label: "Policy updates", description: "See captured changes relevant to your profile and their review state.", icon: Bell },
 ];
-const secondary: { id: Tab; label: string; icon: LucideIcon }[] = [
-  { id: "profile", label: "My Profile", icon: UserRound },
-  { id: "connections", label: "Connections", icon: Link2 },
-  { id: "audit", label: "Activity log", icon: Clock3 },
+const secondary: NavigationItem[] = [
+  { id: "profile", label: "My Profile", description: "Review and update your status, dates, and planning information.", icon: UserRound },
+  { id: "connections", label: "Connections", description: "Manage the email and calendar services you choose to connect.", icon: Link2 },
+  { id: "audit", label: "Activity log", description: "Review your saved actions, approvals, and results.", icon: Clock3 },
 ];
 const titles: Record<Tab, [string, string]> = {
   overview: ["Planning overview", ""],
@@ -37,8 +39,8 @@ export default function AppShell({ account, profile, role, tab, onTab, onLogout,
 }) {
   const firstName = account.name.split(" ")[0];
   const initial = Array.from(firstName)[0] || "U";
-  const items = role === "reviewer" ? [...secondary, { id: "review" as Tab, label: "Review workspace", icon: ShieldCheck }] : secondary;
-  const navigationButton = ({ id, label, icon: Icon }: { id: Tab; label: string; icon: LucideIcon }) => <button key={id} type="button" className={`nav-item ${tab === id ? "active" : ""}`} aria-label={label} aria-current={tab === id ? "page" : undefined} onClick={() => onTab(id)}><Icon size={18} /><span>{label}</span>{id === "assistant" && assistantUnread > 0 && <small className="assistant-unread" aria-label={`${assistantUnread} unread assistant updates`}>{assistantUnread}</small>}</button>;
+  const items: NavigationItem[] = role === "reviewer" ? [...secondary, { id: "review", label: "Review workspace", description: "Review captured changes before active guidance is updated.", icon: ShieldCheck }] : secondary;
+  const navigationButton = ({ id, label, description, icon: Icon }: NavigationItem) => <button key={id} type="button" className={`nav-item ${tab === id ? "active" : ""}`} aria-label={`${label}. ${description}`} title={`${label}: ${description}`} aria-current={tab === id ? "page" : undefined} onClick={() => onTab(id)}><Icon size={18} /><span className="nav-copy"><strong>{label}</strong><small className="nav-description">{description}</small></span>{id === "assistant" && assistantUnread > 0 && <small className="assistant-unread" aria-label={`${assistantUnread} unread assistant updates`}>{assistantUnread}</small>}</button>;
   return <div className="app-shell">
     <aside className="sidebar"><Logo /><div className="workspace-label">MY WORKSPACE</div><nav aria-label="Main navigation">{nav.map(navigationButton)}</nav>
       <div className="sidebar-bottom"><div className="quiet-card"><Globe2 size={22} /><strong>A world of possibilities.</strong><p>Make room for what comes next. We'll help with the details.</p></div><nav aria-label="Account navigation">{items.map(navigationButton)}</nav><div className="sidebar-profile"><button type="button" className="avatar avatar-link small" aria-label="Open My Profile from sidebar" title="My Profile" aria-current={tab === "profile" ? "page" : undefined} onClick={() => onTab("profile")}>{initial}</button><div><strong>{account.name}</strong><small>{profile.status_type} · {profile.school === "University of Pennsylvania" ? "Penn" : profile.school}</small></div><IconButton title="Sign out" onClick={() => void onLogout()}><LogOut size={16} /></IconButton></div></div>
