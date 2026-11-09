@@ -1,5 +1,6 @@
 """A new chat must reset IBM context while preserving separate proactive records."""
 from datetime import timedelta
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -19,7 +20,7 @@ def runtime(env, monkeypatch):
 
     def send(message, **kwargs):
         calls.append({"message": message, **kwargs})
-        return SimpleNamespace(message="Synthetic model response for lifecycle testing.", thread_id=f"private-thread-{len(calls)}")
+        return SimpleNamespace(message=json.dumps({"kind": "answer", "message": "Synthetic model response for lifecycle testing."}), thread_id=f"private-thread-{len(calls)}")
 
     monkeypatch.setattr("app.retrieval.retrieve_for_profile", lambda *a, **kw: [])
     app.dependency_overrides[get_runtime] = lambda: SimpleNamespace(send=send)

@@ -16,9 +16,9 @@ export function availableWorkflows(profile: Profile) {
 type PlanningField = { key: string; label: string; type?: "date"; required?: boolean; options?: string[] };
 export function workflowFields(workflow: PlanningWorkflow, profile: Profile): PlanningField[] {
   if (workflow === "travel") return [
-    { key: "travel_destination", label: "Destination country / countries", required: true },
-    { key: "travel_date", label: "Departure from the US", type: "date", required: true },
-    { key: "return_date", label: "Return to the US", type: "date", required: true },
+    { key: "travel_destination", label: "Destination country / countries (if known)" },
+    { key: "travel_date", label: "Departure from the US (if known)", type: "date" },
+    { key: "return_date", label: "Return to the US (if known)", type: "date" },
     { key: "travel_signature_date", label: `Latest ${profile.status_type === "F-1" ? "I-20" : "DS-2019"} travel signature`, type: "date" },
     { key: "passport_expiry", label: "Passport expiration", type: "date" },
     { key: "visa_expiry", label: "US entry visa expiration (if applicable)", type: "date" },
@@ -29,6 +29,7 @@ export function workflowFields(workflow: PlanningWorkflow, profile: Profile): Pl
     ] : []),
   ];
   if (workflow === "opt") return [
+    { key: "goal_date", label: "Intended internship / employment start (optional)", type: "date" },
     { key: "opt_stage", label: "Where are you in the process?", options: ["unknown", "not_planning", "considering", "preparing", "submitted", "approved", "active", "completed", "denied", "withdrawn"] },
     { key: "opt_type", label: "Application type", options: ["unknown", "pre_completion", "post_completion", "stem_extension"] },
     { key: "f1_activity", label: "Current activity", options: ["unknown", "studying", "post_completion_opt", "stem_opt", "other"] },

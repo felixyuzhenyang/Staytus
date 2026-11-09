@@ -1,5 +1,6 @@
 """Guided forms must reach the model with scoped evidence and retain approval gates."""
 from types import SimpleNamespace
+import json
 
 import pytest
 from conftest import login
@@ -18,7 +19,16 @@ def planning_runtime(env, monkeypatch):
             self.calls = []
         def send(self, message, **kwargs):
             self.calls.append({"message": message, **kwargs})
-            return SimpleNamespace(message="Your personalized plan: review the supplied source with ISSS before departure.", thread_id="private-planning-thread")
+            context = json.loads(kwargs["history"][0]["content"].split("\n")[-1])
+            plan = context.get("guided_plan")
+            if plan:
+                content = {"summary": "Review your goal and current stage with your adviser. The timeline separates preparation targets and dates still to confirm.",
+                    "node_notes": [{"id": node["id"], "explanation": "Review the supplied facts and relevant official guidance with your adviser."} for node in plan["timeline"]["nodes"]]}
+            elif "What should I ask my adviser?" in message:
+                content = {"kind": "plan", "workflow": "travel", "reuse_previous": True}
+            else:
+                content = {"kind": "answer", "message": "Review the supplied source with ISSS."}
+            return SimpleNamespace(message=json.dumps(content), thread_id="private-planning-thread")
     runtime = Runtime()
     app.dependency_overrides[get_runtime] = lambda: runtime
     monkeypatch.setattr("app.retrieval.retrieve_for_profile", lambda *args, **kwargs: [{
@@ -64,9 +74,21 @@ def test_guided_plan_passes_scenario_evidence_and_checks_to_real_chat_path(env, 
         assert list(db.scalars(select(Approval))) == []
 
 
+def test_long_optional_notes_do_not_exceed_provider_input_budget(env, student, planning_runtime):
+    client, _ = env
+    request = travel_request(client, student, notes="Please explain in English. " + "x" * 1473)
+    response = client.post("/api/v1/chat", headers=student, json={"message": "Plan my trip. " + "y" * 7900,
+        "planning_request": request})
+    assert response.status_code == 200, response.text
+    prompt = planning_runtime.calls[-1]["message"]
+    assert len(prompt) <= 6900
+    assert "Japan" in prompt and "2027-01-22" in prompt
+    assert "timeline_nodes" in prompt
+
+
 @pytest.mark.parametrize("override", [
     {"planning_details": {"travel_destination": "Japan", "return_date": "2026-01-01"}},
-    {"planning_details": {"return_date": "2027-01-22"}},
+    {"planning_details": {"return_date": "2027-01-22", "passport_number": "not-collected"}},
     {"profile_version": 999},
     {"profile_id": "sam-rivera"},
     {"planning_details": {"travel_destination": "Japan", "return_date": "2027-01-22", "academic_training_stage": "active"}},

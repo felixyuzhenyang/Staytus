@@ -13,7 +13,7 @@ export default function GuidedPlanningForm({ workflow, profile, busy, error, onC
   const fields = workflowFields(workflow, profile);
   const option = planningWorkflows.find(item => item.id === workflow)!;
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map(field => [field.key,
-    String((field.key === "travel_date" || field.key === "travel_signature_date" ? profile[field.key] : profile.planning_details?.[field.key as keyof PlanningDetails]) || (field.options ? "unknown" : ""))])));
+    String((field.key === "goal_date" ? "" : field.key === "travel_date" || field.key === "travel_signature_date" ? profile[field.key] : profile.planning_details?.[field.key as keyof PlanningDetails]) || (field.options ? "unknown" : ""))])));
   const [notes, setNotes] = useState("");
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => { form.current?.querySelector<HTMLElement>(".country-trigger, input, select:not(.country-form-value)")?.focus(); }, []);
@@ -22,7 +22,7 @@ export default function GuidedPlanningForm({ workflow, profile, busy, error, onC
     const request: PlanningRequest = { workflow, profile_version: profile.version || 1, planning_details: {}, notes };
     for (const field of fields) {
       const value = values[field.key]?.trim() || null;
-      if (field.key === "travel_date" || field.key === "travel_signature_date") request[field.key] = value;
+      if (field.key === "goal_date" || field.key === "travel_date" || field.key === "travel_signature_date") request[field.key] = value;
       else Object.assign(request.planning_details, { [field.key]: value });
     }
     if (await onGenerate(`${option.title}.${notes.trim() ? ` ${notes.trim()}` : ""}`, request)) onClose();
@@ -37,6 +37,6 @@ export default function GuidedPlanningForm({ workflow, profile, busy, error, onC
       <label className="guided-notes">Anything else to consider?<textarea value={notes} maxLength={1500} rows={2} onChange={event => setNotes(event.target.value)} placeholder="Your goals, questions, or preferred language" /></label>
     </fieldset>
     {error && <p className="chat-inline-error" role="alert">{error}</p>}
-    <div className="guided-footer"><span>AI uses your details and retrieved official policies. Unknown facts remain questions.</span><button className="button primary compact" disabled={busy}>{busy ? <LoaderCircle size={15} className="spin" /> : <Sparkles size={15} />}{busy ? "Building your plan…" : "Generate my plan"}</button></div>
+    <div className="guided-footer"><span>Fill in what you know. Missing details appear as To confirm in your timeline.</span><button className="button primary compact" disabled={busy}>{busy ? <LoaderCircle size={15} className="spin" /> : <Sparkles size={15} />}{busy ? "Building your plan…" : "Generate my plan"}</button></div>
   </form>;
 }

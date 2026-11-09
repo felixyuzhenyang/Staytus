@@ -50,12 +50,17 @@ export type ChatMessage = {
   planning?: GuidedPlan;
 };
 export type PlanningWorkflow = "travel" | "opt" | "extension" | "academic_training" | "scholar";
-export type PlanningRequest = { workflow: PlanningWorkflow; profile_version: number; travel_date?: string | null;
+export type PlanningRequest = { workflow: PlanningWorkflow; profile_version: number; goal_date?: string | null; travel_date?: string | null;
   travel_signature_date?: string | null; planning_details: PlanningDetails; notes: string };
 export type GuidedPlan = { workflow: PlanningWorkflow; title: string; profile_version: number; generated_at: string;
   inputs: PlanningRequest; uses_temporary_details: boolean; calendar_targets: Deadline[]; retrieved_source_count: number;
   record_checks: { id: string; message: string; state: string }[];
-  missing_information: { field: string; question: string }[]; sources: WorkflowSource[] };
+  missing_information: { field: string; question: string }[]; sources: WorkflowSource[];
+  timeline?: { version: string; layout: string; notice: string; nodes: {
+    id: string; title: string; date: string | null; date_kind: "preparation_target" | "saved_date" | "user_goal" | "to_confirm" | "sequence";
+    time_label: string; explanation: string; basis: string[]; depends_on: string[]; sources: WorkflowSource[];
+    calendar_target: Deadline | null; rule_version: string;
+  }[] } };
 export type ChatResponse = Omit<ChatMessage, "role"> & { mode: string; conversation_id?: string; thread_id?: string };
 export type ChatHistory = { conversation_id?: string | null; messages: ChatMessage[]; hide_assistant_updates: boolean };
 export type AssistantUpdate = { id: string; created_at: string; read_at: string | null; outdated: boolean;

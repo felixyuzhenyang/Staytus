@@ -6,6 +6,7 @@ import { date, label } from "@/lib/types";
 import { availableWorkflows } from "@/lib/planning-workflows";
 import GuidedPlanningForm from "./GuidedPlanningForm";
 import ChatPlanActions from "./ChatPlanActions";
+import PlanningTimeline from "./PlanningTimeline";
 import MessageMarkdown from "./MessageMarkdown";
 import AssistantUpdates from "./AssistantUpdates";
 import AssistantUpdateSettings from "./AssistantUpdateSettings";
@@ -19,7 +20,16 @@ export default function ChatPanel({ messages, updates, unread, history, historyL
   const [view, setView] = useState<"chat" | "updates">("chat");
   const messagesContainer = useRef<HTMLDivElement>(null);
   const composerInput = useRef<HTMLInputElement>(null);
-  useEffect(() => { const container = messagesContainer.current; if (view === "chat" && container && (messages.length || busy)) container.scrollTop = container.scrollHeight; }, [messages.length, busy, view]);
+  useEffect(() => {
+    const container = messagesContainer.current;
+    if (view !== "chat" || !container || (!messages.length && !busy)) return;
+    const latest = messages[messages.length - 1];
+    const plans = container.querySelectorAll<HTMLElement>(".chat-message.assistant");
+    const planMessage = plans[plans.length - 1];
+    if (!busy && latest?.planning?.timeline && planMessage) {
+      container.scrollTop += planMessage.getBoundingClientRect().top - container.getBoundingClientRect().top - 12;
+    } else container.scrollTop = container.scrollHeight;
+  }, [messages.length, busy, view]);
   useEffect(() => {
     if (hideUpdates || view !== "chat") return;
     const container = messagesContainer.current;
@@ -50,8 +60,9 @@ export default function ChatPanel({ messages, updates, unread, history, historyL
           <span className="message-author">{message.role === "assistant" ? "Staytus" : "You"}</span>
           {message.planning && <h3 className="plan-message-title">{message.planning.title}</h3>}
           {message.role === "assistant" ? <MessageMarkdown text={message.message} /> : <p className="message-text">{message.message}</p>}
+          {message.planning?.timeline && <PlanningTimeline plan={message.planning} profileVersion={profile.version} busy={locked} onRemind={onRemind} />}
           {!!message.tools?.length && <div className="tool-tags">{message.tools.map((tool, key) => <span key={key}><CheckCircle2 size={12} />{typeof tool === "string" ? tool : typeof tool === "object" && tool ? String((tool as Record<string, unknown>).name || (tool as Record<string, unknown>).tool || "Assistant tool") : "Assistant tool"}</span>)}</div>}
-          {message.citations?.map((citation, key) => <a key={key} className="source-card" href={citation.url || citation.source_url} target="_blank" rel="noreferrer"><BookOpen size={15} /><span><strong>{citation.title || "Source reference"}</strong><small>{citation.status ? label(citation.status) : "Source snapshot"}{citation.verified_at ? ` · ${date(citation.verified_at)}` : ""}</small></span><ExternalLink size={13} /></a>)}
+          {!!message.citations?.length && <details className="message-sources" open={message.planning?.timeline ? undefined : true}><summary>Retrieved sources ({message.citations.length})</summary>{message.citations.map((citation, key) => <a key={key} className="source-card" href={citation.url || citation.source_url} target="_blank" rel="noreferrer"><BookOpen size={15} /><span><strong>{citation.title || "Source reference"}</strong><small>{citation.status ? label(citation.status) : "Source snapshot"}{citation.verified_at ? ` · ${date(citation.verified_at)}` : ""}</small></span><ExternalLink size={13} /></a>)}</details>}
           {message.planning && <ChatPlanActions plan={message.planning} profileVersion={profile.version} busy={locked} onRemind={onRemind} />}
           {message.approval && <button className="button secondary" onClick={onApprovals}>Review prepared action <ArrowRight size={15} /></button>}
         </div>

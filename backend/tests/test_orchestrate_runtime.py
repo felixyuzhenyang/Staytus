@@ -252,7 +252,7 @@ def test_authenticated_chat_route_uses_real_adapter_contract_with_fake_http(env,
     calls, original_client = [], httpx.Client
     def handler(request):
         calls.append(request)
-        return httpx.Response(200, json=response())
+        return httpx.Response(200, json=response(json.dumps({"kind": "answer", "message": "Review your saved program dates."})))
     monkeypatch.setattr(module.httpx, "Client", lambda **kwargs: original_client(
         transport=httpx.MockTransport(handler), **kwargs))
     first = client.post("/api/v1/chat", headers=student, json={"message": "Review my program dates"})

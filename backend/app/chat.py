@@ -1,5 +1,6 @@
 """Single real Orchestrate chat path. Never substitutes a deterministic reply."""
 import json
+import logging
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -20,6 +21,7 @@ from app.guided_planning import (
     repair_planning_message,
 )
 from app.models import AuthSession, Profile, now
+from app.planning_protocol import ChatEnvelope, chat_message, json_object, narrative_issues, parse_narrative, request_from_envelope
 
 router = APIRouter(prefix="/api/v1", tags=["Agent conversations"])
 
@@ -71,7 +73,7 @@ def _grounding(db: Session, session: AuthSession, message: str, planning_request
     plan = None
     guidance = build_workflow_guidance(db, profile)
     if planning_request:
-        profile, guidance, plan, query = prepare_scenario(db, profile, planning_request)
+        profile, guidance, plan, query = prepare_scenario(db, profile, planning_request, allow_incomplete=True)
         message = query + " " + message
     results = retrieve_for_profile(db, profile, message, include_pending=True, limit=5)
     citations = [{key: row.get(key) for key in ("title", "url", "source_url", "version", "captured_at", "status", "review_required")} for row in results]
@@ -126,7 +128,7 @@ def chat(body: ChatRequest, session: AuthSession = Depends(require_profile_sessi
         raise HTTPException(422, "Enter a message")
     if body.planning_request:
         # Validate before creating/locking a conversation or calling a provider.
-        prepare_scenario(db, db.get(Profile, session.profile_id), body.planning_request)
+        prepare_scenario(db, db.get(Profile, session.profile_id), body.planning_request, allow_incomplete=True)
     if body.conversation_id:
         conversation = db.scalar(select(Conversation).where(Conversation.id == body.conversation_id, Conversation.account_id == session.account_id))
         if conversation is None:
@@ -137,36 +139,78 @@ def chat(body: ChatRequest, session: AuthSession = Depends(require_profile_sessi
         db.flush()
     conversation_id = conversation.id
     claimed = db.execute(update(Conversation).where(Conversation.id == conversation_id,
-        or_(Conversation.busy_until.is_(None), Conversation.busy_until < now())).values(busy_until=now() + timedelta(minutes=3)))
+        or_(Conversation.busy_until.is_(None), Conversation.busy_until < now())).values(busy_until=now() + timedelta(minutes=8)))
     if claimed.rowcount != 1:
         raise HTTPException(409, "A reply is already being generated for this conversation")
     db.commit()
     try:
+        profile = db.get(Profile, session.profile_id)
         scenario_request = body.planning_request
+        thread_id = conversation.thread_id
+        direct_reply = None
         if scenario_request is None:
             previous = next((row["planning_request"] for row in reversed(conversation.history) if row.get("planning_request")), None)
-            if previous and previous.get("profile_version") == db.get(Profile, session.profile_id).version:
-                scenario_request = PlanningRequest.model_validate(previous)
-        grounding, citations, plan, context = _grounding(db, session, body.message, scenario_request)
+            if previous and previous.get("profile_version") != profile.version:
+                previous = None
+            direct_grounding = _grounding(db, session, body.message)
+            grounding = direct_grounding[0]
+            routing_message = chat_message(body.message, previous)
+            for attempt in range(2):
+                direct_reply = runtime.send(routing_message, thread_id=thread_id,
+                    history=[grounding, *[{"role": row["role"], "content": row["content"]} for row in conversation.history[-20:]]],
+                    context={"staytus_context": mint_tool_context(session)})
+                thread_id = direct_reply.thread_id or thread_id
+                try:
+                    envelope = ChatEnvelope.model_validate(json_object(direct_reply.message))
+                    if envelope.kind == "plan":
+                        scenario_request = request_from_envelope(envelope, body.message, profile, previous)
+                        prepare_scenario(db, profile, scenario_request, allow_incomplete=True)
+                    elif not envelope.message.strip():
+                        raise ValueError("An answer cannot be empty")
+                    break
+                except (ValueError, TypeError, HTTPException) as error:
+                    if attempt:
+                        raise HTTPException(502, "The assistant could not validate this request. Try the planning shortcuts or provide explicit dates including the year.")
+                    issue = (str(error)[:400] if isinstance(error, ValueError) else "Invalid workflow or scenario data")
+                    routing_message = ("Correct the previous response. Validation issue: " + issue + ". "
+                        "Use goal_date ONLY for intended internship/work dates; omit opt_requested_start unless the user explicitly names a requested OPT date. "
+                        "Each quote must be an EXACT substring of CURRENT USER MESSAGE. A date-only quote such as May 20, 2027 is sufficient. "
+                        "Do not invent dates or fill unknown values.\n" + chat_message(body.message, previous))
+        grounding, citations, plan, context = (_grounding(db, session, body.message, scenario_request)
+            if scenario_request else direct_grounding)
         provider_message = planning_message(body.message.strip(), context) if plan else body.message.strip()
-        reply = runtime.send(provider_message, thread_id=conversation.thread_id,
+        reply = (runtime.send(provider_message, thread_id=thread_id,
             history=[grounding, *[{"role": row["role"], "content": row["content"]} for row in conversation.history[-20:]]],
-            context={"staytus_context": mint_tool_context(session)})
+            context={"staytus_context": mint_tool_context(session)}) if plan else direct_reply)
         if not reply.message or not reply.message.strip():
             raise ValueError("empty provider reply")
         if plan:
-            issues = plan_text_issues(reply.message, context)
-            if issues:
+            for attempt in range(2):
+                issues = plan_text_issues(reply.message, context)
+                try:
+                    narrative = parse_narrative(reply.message, plan)
+                    issues.extend(narrative_issues(narrative, context))
+                except (ValueError, TypeError):
+                    issues.append("Return a short summary and exactly one node_notes explanation per supplied timeline node, using the required JSON schema.")
+                if not issues:
+                    break
+                if attempt:
+                    logging.getLogger(__name__).warning("Planning response rejected after bounded correction: %s", "; ".join(dict.fromkeys(issues)))
+                    raise HTTPException(502, "The AI plan included unsupported dates or an invalid timeline. No plan or calendar event was saved. Please try again or review your details with your adviser.")
                 reply = runtime.send(repair_planning_message(provider_message, issues), thread_id=reply.thread_id,
                     history=[grounding, {"role": "user", "content": provider_message}, {"role": "assistant", "content": reply.message}],
                     context={"staytus_context": mint_tool_context(session)})
-                if not reply.message or not reply.message.strip() or plan_text_issues(reply.message, context):
-                    raise HTTPException(502, "The AI plan included unsupported dates or action claims. No plan or calendar event was saved. Please try again or review your details with your adviser.")
+            notes = {note.id: note.explanation for note in narrative.node_notes}
+            for node in plan["timeline"]["nodes"]:
+                node["explanation"] = notes[node["id"]]
+            answer_text = narrative.summary.strip()
+        else:
+            answer_text = envelope.message.strip()
         if plan and db.scalar(select(Profile.version).where(Profile.id == session.profile_id)) != plan["profile_version"]:
             raise HTTPException(409, "Your profile changed while the plan was generated. Reopen the planning form and try again.")
         conversation.thread_id = reply.thread_id or conversation.thread_id
         user_row = {"role": "user", "content": body.message.strip()}
-        assistant_row = {"role": "assistant", "content": reply.message, "citations": citations}
+        assistant_row = {"role": "assistant", "content": answer_text, "citations": citations}
         if scenario_request:
             user_row["planning_request"] = scenario_request.model_dump(mode="json", exclude_unset=True)
         if plan:
@@ -174,7 +218,7 @@ def chat(body: ChatRequest, session: AuthSession = Depends(require_profile_sessi
         conversation.history = [*conversation.history[-38:], user_row, assistant_row]
         conversation.busy_until = None
         db.commit()
-        return {"message": reply.message, "conversation_id": conversation.id, "mode": "orchestrate", "citations": citations,
+        return {"message": answer_text, "conversation_id": conversation.id, "mode": "orchestrate", "citations": citations,
             **({"planning": plan} if plan else {})}
     except Exception as error:
         db.rollback()

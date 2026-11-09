@@ -23,7 +23,7 @@ class StubRuntime:
         self.calls.append({"message": message, **kwargs})
         if self.failure:
             raise self.failure
-        return SimpleNamespace(message=self.reply, thread_id=kwargs.get("thread_id") or "provider-thread-private")
+        return SimpleNamespace(message=json.dumps({"kind": "answer", "message": self.reply}), thread_id=kwargs.get("thread_id") or "provider-thread-private")
 
 
 @pytest.fixture
