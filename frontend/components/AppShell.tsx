@@ -26,7 +26,7 @@ const titles: Record<Tab, [string, string]> = {
   updates: ["Stay ahead of changes.", "See newly captured information and changes relevant to your plans."],
   profile: ["My Profile", "Keep your program dates and profile information up to date."],
   review: ["Policy review workspace.", "Inspect captured changes before changing an active rule."],
-  audit: ["Every step, accounted for.", "An inspectable record of your actions and approvals."],
+  audit: ["Activity log", ""],
   connections: ["Connect on your terms.", "Choose the services you want Staytus to access."],
 };
 
