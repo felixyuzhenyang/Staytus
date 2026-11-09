@@ -1,5 +1,10 @@
 # Staytus change log
 
+## 2026-11-08 — Personalize workspace navigation labels
+
+- Replaced the shell navigation label Your workspace with My workspace in the desktop sidebar, top breadcrumb and non-Overview page eyebrow. Loading, onboarding and status sentences that use “your workspace” grammatically remain unchanged. No route, state, authorization or backend behavior changed.
+- Frontend type checking and the production build passed. Published the allowlisted source to the existing Vercel production project with unchanged configuration and secrets. Vercel reports Ready, `mystaytus.vercel.app` points to the new deployment, and the public gateway health check returned OK.
+
 ## 2026-11-08 — Raise the Orchestrate history-item guard
 
 - Raised the application-side limit for a single Orchestrate history/system message from 64,000 to 100,000 characters. The independent 256,000-character aggregate history limit, 8,000-character current user-message limit and 8,192-character server context limit are unchanged. No truncation, summarization or compaction was added.
