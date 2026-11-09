@@ -52,6 +52,10 @@ class AgentReply:
 _iam_tokens: dict[str, tuple[str, float]] = {}
 _iam_lock = threading.Lock()
 
+# This is an application-side character guard for one history message, not the
+# model's token context window. Keep the separate aggregate-history guard below.
+MAX_HISTORY_ITEM_CHARACTERS = 100_000
+
 
 def _uuid(value: str) -> str:
     if not isinstance(value, str):
@@ -147,7 +151,8 @@ class OrchestrateRuntime:
         for item in history or []:
             if (not isinstance(item, dict) or set(item) != {"role", "content"}
                     or item["role"] not in ("system", "user", "assistant")
-                    or not isinstance(item["content"], str) or len(item["content"]) > 64000):
+                    or not isinstance(item["content"], str)
+                    or len(item["content"]) > MAX_HISTORY_ITEM_CHARACTERS):
                 raise OrchestrateError("Conversation history has an invalid format")
             messages.append({"role": item["role"], "content": item["content"]})
         values = context if context is not None else {}

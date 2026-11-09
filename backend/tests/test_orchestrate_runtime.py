@@ -8,7 +8,8 @@ import pytest
 
 from app.integrations import orchestrate_runtime as module
 from app.integrations.orchestrate_runtime import (
-    AgentReply, OrchestrateError, OrchestrateRuntime, OrchestrateSettings, OrchestrateUnavailable,
+    AgentReply, MAX_HISTORY_ITEM_CHARACTERS, OrchestrateError, OrchestrateRuntime,
+    OrchestrateSettings, OrchestrateUnavailable,
 )
 
 INSTANCE = "11111111-1111-4111-8111-111111111111"
@@ -57,6 +58,16 @@ def test_service_path_messages_thread_header_and_context_each_turn():
                                            "stream": False, "context": {"staytus_context": "signed-capability-one"}}
     assert json.loads(calls[1].content)["context"] == {"staytus_context": "signed-capability-two"}
     assert history == [{"role": "system", "content": "Use the retrieved official excerpts."}]
+
+
+def test_single_history_item_accepts_100000_characters_and_rejects_100001():
+    accepted = "x" * MAX_HISTORY_ITEM_CHARACTERS
+    body = OrchestrateRuntime._body("Continue", [{"role": "system", "content": accepted}], {})
+    assert body["messages"][0]["content"] == accepted
+    with pytest.raises(OrchestrateError, match="invalid format"):
+        OrchestrateRuntime._body("Continue", [{
+            "role": "system", "content": accepted + "x",
+        }], {})
 
 
 def test_iam_cache_shared_across_request_runtime_instances_and_refreshes_on_expiry(monkeypatch):

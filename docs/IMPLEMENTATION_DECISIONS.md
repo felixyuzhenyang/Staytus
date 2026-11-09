@@ -2,6 +2,10 @@
 
 The original two plans and Unified Project Plan remain preserved. This file records implementation choices where those plans were contradictory or needed a local development path.
 
+## November 8 Orchestrate history-item guard
+
+The previous 64,000-character limit on one Orchestrate history message was an application-side validation guard, not a discovered IBM model or API limit. It rejected a lossless server-supplied grounding message of roughly 69,000 characters before any network request. The per-item guard is now 100,000 characters after synthetic, non-personal 69,367-, 99,000- and exact 100,000-character requests were accepted by the configured IBM Orchestrate agent. The separate 256,000-character aggregate history guard remains unchanged. This revision does not truncate, summarize or compact policy excerpts, profile context, planning data or assistant updates; compaction remains a separate future design if real requests exceed the new bound or the provider's token budget.
+
 ## November 3 cloud database choice and funding audit
 
 The user selected Supabase Free, with no automatic paid upgrade, and completed project/password creation. Hosting is now active: certificate-verified TLS over the free Session pooler, separate owner/runtime roles, Alembic baseline, atomic25table/266row/98chunk transfer, dual-account API/gateway verification and a cloud application archive restored into new PostgreSQL. Keep existing backend identity/business services and psycopg/SQLAlchemy/Alembic; Supabase Data API is disabled and neither Supabase Auth nor GitHub branching is adopted. Original local databases remain intact; public compute deployment is separate. See `DATABASE_AND_CONTAINERS.md`.

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.chat import get_runtime
+from app.integrations.orchestrate_runtime import OrchestrateRuntime
 from app.main import app
 from app.models import Profile
 from app.planning_protocol import ChatEnvelope, request_from_envelope
@@ -75,6 +76,40 @@ def test_form_and_chat_share_timeline_and_missing_travel_dates_remain_unknown(en
     nodes = {node["id"]: node for node in response.json()["planning"]["timeline"]["nodes"]}
     assert nodes["return"]["date"] is None
     assert nodes["return"]["date_kind"] == "to_confirm"
+
+
+def test_combined_grounding_above_old_64000_limit_reaches_timeline_runtime(
+        env, student, timeline_runtime, monkeypatch):
+    client, _ = env
+    monkeypatch.setattr("app.retrieval.retrieve_for_profile", lambda *a, **kw: [{
+        "title": f"Synthetic official source {index}",
+        "source_url": f"https://example.edu/policy/{index}",
+        "text": "Synthetic official reference excerpt. " * 150,
+        "status": "detected_pending_review", "review_required": True,
+        "extra_metadata": "x" * 5000,
+    } for index in range(5)])
+    update = {"content": {
+        "title": "Synthetic saved assistant update",
+        "summary": "Saved synthetic update. " * 200,
+        "why_it_matters": "Synthetic explanation. " * 100,
+        "next_steps": ["Review the official source. " * 20],
+    }, "created_at": "2026-11-08T12:00:00Z", "outdated": False}
+    monkeypatch.setattr("app.assistant_updates.list_updates", lambda *a, **kw: [update, update])
+    original_send = timeline_runtime.send
+    grounding_sizes = []
+
+    def checked_send(message, **kwargs):
+        grounding_sizes.append(len(kwargs["history"][0]["content"]))
+        OrchestrateRuntime._body(message, kwargs.get("history"), kwargs.get("context"))
+        return original_send(message, **kwargs)
+
+    monkeypatch.setattr(timeline_runtime, "send", checked_send)
+    profile = client.get("/api/v1/profile", headers=student).json()
+    response = client.post("/api/v1/chat", headers=student, json={"message": "Plan my OPT", "planning_request": {
+        "workflow": "opt", "profile_version": profile["version"], "goal_date": "2027-05-20",
+        "planning_details": {"opt_stage": "considering", "opt_type": "pre_completion"}}})
+    assert response.status_code == 200, response.text
+    assert grounding_sizes and 64_000 < grounding_sizes[0] <= 100_000
 
 
 @pytest.mark.parametrize("field,value,quote", [

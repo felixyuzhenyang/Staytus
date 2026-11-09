@@ -1,5 +1,12 @@
 # Staytus change log
 
+## 2026-11-08 — Raise the Orchestrate history-item guard
+
+- Raised the application-side limit for a single Orchestrate history/system message from 64,000 to 100,000 characters. The independent 256,000-character aggregate history limit, 8,000-character current user-message limit and 8,192-character server context limit are unchanged. No truncation, summarization or compaction was added.
+- Added exact 100,000/100,001 boundary coverage and a full planning regression whose combined profile, policy excerpts, assistant updates and timeline grounding exceeds the old 64,000-character guard while remaining below the new limit.
+- The configured IBM Orchestrate agent accepted synthetic, non-personal requests containing 69,367, 99,000 and exactly 100,000 history characters and returned brief replies for all three. This establishes the tested range only; it does not claim that characters equal model tokens or that every possible 100,000-character payload is within every provider/model token budget.
+- Validation: 596 backend tests passed with 3 opt-in PostgreSQL skips; frontend type checking, 13-tool OpenAPI validation, production build and whitespace checks passed. Published the allowlisted source to the existing public URL with unchanged credentials/configuration. The disposable two-account public probe passed guided and direct OPT timelines, definition handling, history restoration and cross-account denial, then removed both exact synthetic accounts.
+
 ## 2026-11-08 — Visual Assistant planning timelines
 
 - Added a concise real-LLM summary and structured visual timeline to guided and free-text planning. The server owns dates, node identity, dependencies, calculation traces and official source metadata; each node has a separately validated LLM explanation and an expandable date/source section. Missing dates and unverified filing steps remain To confirm. Source-change/review labels and calendar approval gates are retained.
