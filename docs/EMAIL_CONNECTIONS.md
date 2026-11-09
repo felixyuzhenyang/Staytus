@@ -2,6 +2,26 @@
 
 Staytus uses OAuth authorization-code + PKCE through its same-origin server proxy. The user signs in at Google/Microsoft; Staytus never collects the mailbox password. The implemented integration supports personal Gmail/Microsoft accounts and eligible school-managed accounts. A school administrator may restrict third-party consent even when the user can sign in normally.
 
+## Opt-in matching email-content summaries — November 8
+
+Mailbox OAuth and Staytus content analysis are separate permissions. A delegated `gmail.readonly` or `Mail.Read` grant lets the backend perform bounded reads, but it does not authorize sending message bodies to a model. The signed-in user must separately enable **Allow Staytus to analyze matching email content** for the current provider connection. Disabling that choice deletes the provider's retained summaries; relinking or disconnecting also invalidates the consent and connection binding.
+
+Staytus first filters recent inbox metadata by registered official domains and international-student topics. Only matching messages proceed to a second, bounded inline-body read. At most five messages are analyzed in one batch. Attachments and named or remote MIME parts are excluded, provider responses are streamed under a byte limit, and extracted text is bounded before it reaches IBM watsonx.ai. Email fields are labelled as untrusted data: the generation instructions prohibit following embedded requests, opening links, calling tools, changing permissions or treating an email as verified immigration policy. The backend then validates the strict structured response, requires human confirmation, and requires normalized action dates to match exact date evidence quoted from the same message.
+
+Raw bodies and attachments are never written to the database or returned to Watson Orchestrate. Staytus stores only an encrypted structured summary containing bounded message metadata, a concise summary and relevance explanation, proposed actions/questions, and short quoted date evidence. Current-profile and current-connection checks guard reads; records expire after 90 days and the daily mail job physically deletes expired rows. Turning content analysis off deletes them immediately. The current cache is also scoped to connection, profile version, model and expiry.
+
+Daily inbox monitoring remains a third, independent opt-in. It checks a bounded recent inbox window without sending, deleting or marking messages read. When both daily monitoring and content analysis are enabled, newly detected matches are summarized in batches of five; later messages remain queued for a future run. The user receives an account-owned count notice and can review encrypted summaries in Connections while verifying important details in the original mailbox. If content analysis is off, the monitor creates only the existing count notice and does not share message bodies with watsonx.ai.
+
+The implementation, migration, provider doubles, adversarial-email validation, retention, consent-race and account-isolation paths have synthetic automated coverage. The fourteenth Orchestrate tool, `summarize_recent_official_messages`, is imported and published; a bounded main-Agent Live test verified that both mail tools deny a synthetic account without the required permissions. The Google mailbox owner then enabled the separate application consent and one real matching body completed the same bounded watsonx.ai summary path. The first model response needed the allowed JSON-format correction pass; the second produced a validated encrypted summary, and the public API returned200. No attachment, raw body or provider token entered the retained result.
+
+## Microsoft developer setup — November4
+
+Registered the Staytus Web application in the developer's personal Default Directory, outside PennO365. Its audience supports organizational and personal Microsoft accounts, the production callback below is registered, and only delegated `User.Read`, `Mail.Read` and `offline_access` are declared. No organization-wide mailbox access or tenant-wide admin consent was granted. The developer personally created `staytus-production-web` with a November4,2028 expiration; its value is stored only in backend `.env` and Vercel Production. Rotate it before expiry without changing the application ID.
+
+The existing production source was redeployed with `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` and `MICROSOFT_TENANT=common`. Live synthetic tests passed the configured callback/client ID, S256 PKCE, minimal scopes, account-bound cancellation and replay rejection; test accounts were removed. The live Connections page displays Ready to connect. A real Penn mailbox attempt returned `AADSTS90095` and Need approval before a token exchange; no school approval request was submitted. Real provider consent, credential/token exchange and inbox reads remain unverified, including for personal Outlook accounts. The user must obtain the school administrator's approval for this mailbox or test an eligible personal Outlook mailbox. Developer setup in a personal directory does not override the school's consent policy. Calendar/draft grants are not part of this initial read-only setup.
+
+The user opted to retain this setup and defer school approval. Resume from Connections → Microsoft / Outlook → Connect email when ready; no developer registration needs to be repeated solely because this authorization attempt was abandoned.
+
 ## Current public-domain setup — November3
 
 The public frontend, privately bound API and stable tool gateway are deployed at https://mystaytus.vercel.app. Its backend uses the existing encrypted-token key and approved production OAuth client secret. The developer configures these once per deployment; end users only sign into Staytus and separately authorize their chosen provider. A Staytus login email may be Outlook while the linked mailbox is Gmail; the two identities do not have to match.
@@ -10,7 +30,7 @@ The existing Google Web client now has both the production callback below and it
 
 Google currently remains External/Testing. [Google documents a seven-day refresh-token lifetime for this configuration](https://developers.google.com/identity/protocols/oauth2#expiration), except basic identity-only requests. A stable public application URL does not change that state. Broad release requires completing branding/homepage/privacy-policy/domain and scope verification steps as applicable; server-side Gmail read uses a restricted scope and may require a security assessment unless an exception applies. [Google verification requirements and testing exceptions](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification). Do not describe a successful designated-test-user connection as approval for arbitrary public users.
 
-Microsoft remains unconfigured. The user completed normal Penn MFA, but the Penn-managed Entra console displayed no access/UI401. The user deferred Outlook. Use an authorized developer tenant to register one deployment-owned Web application; that does not require every student to register an application. Penn or another organization may separately restrict consent to an externally registered application. No Azure subscription, new tenant, role or administrator approval was created.
+Microsoft is configured once for the deployment through the Staytus application in the developer's personal Default Directory. Its `common` tenant endpoint supports organizational and personal Microsoft accounts, and the server holds the production client credential. End users do not create an Azure application; each user clicks **Connect email** and grants delegated `Mail.Read` and `offline_access` for their own mailbox. The Penn-managed mailbox returned `AADSTS90095` / Need approval, so that specific organization still requires an administrator to approve Staytus. No tenant-wide or application-level mailbox permission was requested, and a personal Outlook mailbox has not yet completed the live consent/read test.
 
 ## Developer configuration
 
@@ -23,7 +43,7 @@ https://mystaytus.vercel.app/api/backend/connections/google/callback
 https://mystaytus.vercel.app/api/backend/connections/microsoft/callback
 ```
 
-The Google callback is registered; the Microsoft callback is the planned value, not a completed registration. Local development defaults remain:
+Both production callbacks are now registered; the November4 Microsoft section distinguishes developer setup from pending real-user consent. Local development defaults remain:
 
 ```text
 http://127.0.0.1:3000/api/backend/connections/google/callback
@@ -76,8 +96,9 @@ After developer setup, the user can use the mailbox they already own; they do no
 3. Return to Staytus and confirm the provider/scopes are visible. Select **Check messages**. Only bounded recent official-topic metadata/short previews are returned, without attachments or full bodies.
 4. If the user wants the cloud Agent to inspect matching previews, separately enable **Allow assistant to read matching email previews**. OAuth connection alone never enables this.
 5. With the existing Live Orchestrate connection, ask it to check recent relevant email only if that separate Agent-preview toggle is enabled. The read-only tool uses the signed-in principal, never a model-supplied account ID. It returns at most10previews, each at most500characters, and marks them untrusted data rather than official policy authority.
-6. To test drafts, choose **Enable email drafts**, complete the separate provider grant, and approve one exact draft in Staytus. Verify it in the actual provider mailbox. No send endpoint is implemented.
-7. Turning off Agent access preserves manual mailbox reads. Relinking or disconnecting resets Agent access. Disconnect removes local tokens/pending authorizations; provider account settings can revoke provider-wide consent too.
+6. To request private body summaries, separately enable **Allow Staytus to analyze matching email content**. Review the disclosure before consenting. The summary tool remains denied when this toggle is off even if preview access is on. Verify any returned dates or actions in the original message; a summary is not a policy determination.
+7. To test drafts, choose **Enable email drafts**, complete the separate provider grant, and approve one exact draft in Staytus. Verify it in the actual provider mailbox. No send endpoint is implemented.
+8. Turning off Agent access preserves manual mailbox reads. Turning off content analysis deletes retained summaries. Relinking or disconnecting resets both choices. Disconnect removes local tokens/pending authorizations; provider account settings can revoke provider-wide consent too.
 
 ## Implemented safety and current limits
 
@@ -86,6 +107,7 @@ After developer setup, the user can use the mailbox they already own; they do no
 - Exact known scope checks, token refresh and one read-only401 retry are implemented. Reduced permissions stop the request before message retrieval.
 - Current relevance filtering covers Penn and selected federal sender domains/topics; it is not every university's directory.
 - Mail previews are not persisted into the policy corpus or silently included in normal chat grounding. Agent access requires a separate user choice.
+- Matching inline body text reaches watsonx.ai only after the separate content-analysis choice. Attachments and raw bodies are not retained; encrypted structured summaries are current-profile scoped and physically deleted after90days or immediately when consent is withdrawn.
 - An enabled configuration screen is not a successful live connection. A real user must complete provider authorization; school/provider restrictions must be resolved through their normal approval process.
 
 ## Earlier preparation audit, before the public-domain configuration
@@ -125,7 +147,7 @@ The authenticated API is `GET/PATCH /api/v1/mail-monitor/{google|microsoft}` and
 
 Checks use the existing bounded read service, restricted to the inbox and recent30days: Gmail uses `in:inbox`; Microsoft uses the inbox-folder messages endpoint. At most20 matching messages are returned, so this is not a complete mailbox archive or a guarantee that every important email was found. Sender/topic filtering currently covers Penn and selected federal sources. See [Gmail inbox filtering](https://developers.google.com/workspace/gmail/api/guides/list-messages) and [Microsoft mail folders/messages](https://learn.microsoft.com/en-us/graph/api/resources/mailfolder?view=graph-rest-1.0).
 
-Persistent monitoring state contains the connection binding, schedule, status and hashed message IDs for deduplication. Newly detected messages create a private in-app count notice, explicitly marked untrusted. Message bodies, snippets and subjects are not saved by the monitor; manual short previews are returned to the signed-in UI only. Nothing is added to the public policy corpus or silently sent to a model. No send, mark-read or delete operation is implemented by the monitor. These paths have mock/security tests; no real personal mailbox was checked during this iteration.
+Persistent monitoring state contains the connection binding, schedule, status and hashed message IDs for deduplication. Newly detected messages create a private in-app count notice, explicitly marked untrusted. With content analysis disabled, message bodies, snippets and subjects are not saved by the monitor or sent to a model; manual short previews are returned to the signed-in UI only. With the separate content-analysis choice enabled, matching inline body text is sent to watsonx.ai in batches of five and only the encrypted structured summary described above is retained. Nothing is added to the public policy corpus. No send, mark-read or delete operation is implemented by the monitor. Synthetic monitor/security paths passed, and the same underlying analysis path passed one real owner-invoked Gmail summary; the first naturally scheduled body-summary batch remains to be observed.
 
 ## Direct iCloud calendar connection
 

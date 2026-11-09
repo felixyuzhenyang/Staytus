@@ -29,6 +29,10 @@ contract reviewers should preserve when editing the agent in IBM Bob or Builder.
     separate assistant access for that connected provider. The tool returns bounded
     previews, not full messages or attachments. Final draft approval stays in the
     application; no tool is allowed to send mail.
+11. Summarize matching email content only after the user has enabled the separate
+    content-analysis permission. The backend sends bounded inline body text to
+    watsonx.ai and returns validated summaries only. Raw bodies and attachments are
+    not returned to the Agent or retained. Verify dates/actions in the original mail.
 
 The eight policy labels are `current_effective`, `announced_future`, `proposed`,
 `under_comment`, `detected_pending_review`, `postponed_or_enjoined`, `superseded`,

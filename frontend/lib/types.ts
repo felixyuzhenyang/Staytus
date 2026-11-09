@@ -71,7 +71,7 @@ export type AssistantPreferences = { enabled: boolean; language: "en" | "zh"; ac
 export type AssistantUpdatePage = { updates: AssistantUpdate[]; next_before: string | null; unread_count: number };
 export type Connection = {
   provider: string; configured: boolean; connected: boolean; email?: string; scopes?: string[]; last_sync_at?: string;
-  agent_access?: boolean;
+  agent_access?: boolean; content_analysis_enabled?: boolean;
   connection_id?: string | null;
   calendar_write?: boolean;
   email_identity_verified?: boolean;
@@ -80,6 +80,14 @@ export type Connection = {
 export type CalendarProvider = "export" | "google" | "microsoft" | "icloud";
 export type OAuthCapability = "mail_read" | "mail_draft" | "calendar_write";
 export type MailMessage = { id: string; subject?: string; from?: string; received_at?: string; snippet?: string };
+export type MailAnalysis = {
+  id: string; provider: string; subject?: string; from?: string; received_at?: string;
+  generated_at: string; expires_at: string; model?: string;
+  analysis: { summary: string; why_relevant: string;
+    action_items: { text: string; due_date?: string | null; needs_confirmation: boolean }[];
+    dates: { date_text: string; meaning: string; exact_quote: string }[];
+    questions_to_confirm: string[]; needs_human_review: boolean };
+};
 export type Tab = "overview" | "assistant" | "policies" | "approvals" | "updates" | "profile" | "review" | "audit" | "connections";
 
 export function date(value?: string | null) {

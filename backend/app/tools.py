@@ -9,6 +9,7 @@ from app.models import AuthSession, Notification, Profile
 from app.rules import adapter_for
 from app.schemas import DeadlineTool, EmptyTool, EscalationTool, PolicyTool, PreviewTool, SearchTool
 from app.integrations.connectors import MailReadTool, read_recent_messages
+from app.mail_analysis import MailAnalysisTool, analyze_matching_messages
 
 router = APIRouter(prefix="/tools", tags=["Orchestrate read and proposal tools"])
 
@@ -94,3 +95,13 @@ def create_calendar_preview(body: PreviewTool, session: AuthSession = Depends(ge
 def read_recent_official_messages(body: MailReadTool, session: AuthSession = Depends(get_tool_session), db: Session = Depends(get_db)):
     profile = actor(db, session, "read_recent_official_messages")
     return read_recent_messages(db, profile.account_id, body.provider, limit=body.limit, for_agent=True)
+
+
+@router.post("/summarize_recent_official_messages", operation_id="summarize_recent_official_messages")
+def summarize_recent_official_messages(body: MailAnalysisTool, session: AuthSession = Depends(get_tool_session),
+                                       db: Session = Depends(get_db)):
+    profile = actor(db, session, "summarize_recent_official_messages")
+    return {"provider": body.provider,
+        "analyses": analyze_matching_messages(db, profile.account_id, profile, body.provider, limit=body.limit),
+        "raw_bodies_retained": False,
+        "notice": "Summaries are planning aids; verify dates and required actions in the original mailbox and official sources."}

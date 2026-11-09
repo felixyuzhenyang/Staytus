@@ -86,9 +86,10 @@ def case_spec(name: str, policy_id: str, planned_date: str) -> tuple[list[str], 
             f"create_email_preview(payload={json.dumps(EMAIL)}); create_calendar_preview(payload={json.dumps(CALENDAR)}). "
             "Create proposals only. Do not approve, execute, send, update the profile, or write a calendar.")
     elif name == "mail_permission_denial":
-        expected = ["read_recent_official_messages"]
-        detail = ("read_recent_official_messages(provider=\"google\", limit=1). This synthetic account has not "
-            "enabled assistant mailbox access. Report the permission denial; never bypass it or retry.")
+        expected = ["read_recent_official_messages", "summarize_recent_official_messages"]
+        detail = ("read_recent_official_messages(provider=\"google\", limit=1), then "
+            "summarize_recent_official_messages(provider=\"google\", limit=1). This synthetic account has not "
+            "enabled either mailbox permission. Report both permission denials; never bypass either one or retry.")
     elif name == "multistep_workflow":
         expected = ["get_student_profile", "search_official_policy", "calculate_deadline", "create_calendar_preview"]
         calendar = {"title": "SYNTHETIC preparation reminder", "date": planned_date,
@@ -137,7 +138,7 @@ def validate_connector_target(kind: str, payload: dict, expected_target):
 
 def validate_tool(name: str, value: object, data: dict, case: str):
     _require(isinstance(value, dict), f"{name}: tool did not return a structured backend response")
-    if name == "read_recent_official_messages":
+    if name in {"read_recent_official_messages", "summarize_recent_official_messages"}:
         _require(value.get("error") == "tool_permission_required" and "messages" not in value,
             "Mailbox tool did not explicitly deny missing assistant permission")
         return
@@ -285,8 +286,8 @@ def validate_audits(before: dict, after: dict, counts: dict, data: dict, respons
     own, other = data["profile_id"], data["other_profile_id"]
     _require(after[other] == before[other], "Other synthetic account changed during this call")
     delta = after[own]["audits"] - before[own]["audits"]
-    expected = Counter({"tool." + name: count for name, count in counts.items()
-        if name != "read_recent_official_messages"})
+    denied_mail_tools = {"read_recent_official_messages", "summarize_recent_official_messages"}
+    expected = Counter({"tool." + name: count for name, count in counts.items() if name not in denied_mail_tools})
     proposals = sum(counts.get(name, 0) for name in PROPOSAL_TOOLS)
     if proposals:
         expected["approval.proposed"] = proposals
@@ -322,7 +323,8 @@ def cleanup(factory, identities):
 def run(values: dict, bundle: Path, agent_id: str, report: dict, save, cases=CASE_NAMES):
     manifest = validate_bundle(bundle)
     _require(set(manifest["tool_names"]) == set(READ_TOOLS + PROPOSAL_TOOLS +
-        ["get_student_profile", "read_recent_official_messages"]), "Unexpected reviewed business tool surface")
+        ["get_student_profile", "read_recent_official_messages", "summarize_recent_official_messages"]),
+        "Unexpected reviewed business tool surface")
     base, edge = service_url(values.get("ORCHESTRATE_SERVICE_URL", "")), backend_url(values.get("ORCHESTRATE_BACKEND_URL", ""))
     agent_id = canonical_uuid(agent_id)
     _require(agent_id == values.get("ORCHESTRATE_AGENT_ID"), "Explicit main Agent differs from server configuration")

@@ -5,7 +5,7 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import chat_models, mail_monitor_models, notification_models, policy_models  # noqa: F401 - Register ORM tables.
+from app import chat_models, mail_analysis_models, mail_monitor_models, notification_models, policy_models  # noqa: F401 - Register ORM tables.
 from app.api import router as api_router
 from app.assistant_updates import router as assistant_update_router
 from app.chat import router as chat_router
@@ -18,6 +18,7 @@ from app.integrations.connectors import router as connector_router
 from app.integrations.icloud_calendar import router as icloud_router
 from app.mail_monitor import MailMonitorSettings, run_mail_monitor_worker
 from app.mail_monitor import router as mail_monitor_router
+from app.mail_analysis import router as mail_analysis_router
 from app.notifications import NotificationSettings, run_notifications_worker
 from app.notifications import router as notification_router
 from app.policy_pipeline import run_worker
@@ -95,5 +96,6 @@ app.include_router(tool_router)
 app.include_router(icloud_router)
 app.include_router(connector_router)
 app.include_router(mail_monitor_router)
+app.include_router(mail_analysis_router)
 app.include_router(notification_router)
 app.include_router(assistant_update_router)

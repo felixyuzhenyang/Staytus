@@ -71,11 +71,12 @@ def test_trace_needs_real_tool_events_and_rejects_model_identity(verifier):
 
 def test_mail_tool_requires_explicit_permission_denial_not_generic_error(verifier):
     data = {"profile_id": "own", "other_profile_id": "other"}
-    verifier.validate_tool("read_recent_official_messages", {"error": "tool_permission_required"}, data, "mail_permission_denial")
-    for result in [{"error": "backend_tool_unavailable"}, {"messages": []},
-            {"error": "tool_permission_required", "messages": []}]:
-        with pytest.raises(verifier.SetupError):
-            verifier.validate_tool("read_recent_official_messages", result, data, "mail_permission_denial")
+    for tool in ["read_recent_official_messages", "summarize_recent_official_messages"]:
+        verifier.validate_tool(tool, {"error": "tool_permission_required"}, data, "mail_permission_denial")
+        for result in [{"error": "backend_tool_unavailable"}, {"messages": []},
+                {"error": "tool_permission_required", "messages": []}]:
+            with pytest.raises(verifier.SetupError):
+                verifier.validate_tool(tool, result, data, "mail_permission_denial")
 
 
 def test_proposals_must_match_exact_content_and_remain_unexecuted(verifier):

@@ -561,6 +561,12 @@ pre { white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.7
 .mail-message h3 { margin:9px 0 4px;font-size:14px; }
 .mail-message small,.mail-message p { color:var(--muted);font-size:13px;line-height:1.8;overflow-wrap:anywhere; }
 .mail-message p { margin-top:12px; }
+.mail-analysis h4 { margin:16px 0 7px;font-size:14px; }
+.mail-analysis ul { margin:8px 0 14px;padding-left:22px;color:var(--text); }
+.mail-analysis li { margin:7px 0;line-height:1.65;font-size:13px; }
+.mail-analysis details { margin:13px 0;border-top:1px solid var(--line-soft);padding-top:10px; }
+.mail-analysis summary { cursor:pointer;font-weight:700;color:var(--text); }
+.mail-analysis .mail-quote { display:block;margin-top:3px;font-style:italic; }
 .source-status { margin-top:28px;padding:0;overflow:hidden; }
 .source-status>summary { list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px 25px; }
 .source-status>summary::-webkit-details-marker { display:none; }

@@ -1,4 +1,16 @@
-# Current verification — November 4, 2026 (America/New_York)
+# Current verification — November 8, 2026 (America/New_York)
+
+## Opt-in matching email-content summaries — 2026-11-08
+
+Staytus now has a separate, default-off application consent for matching email-content analysis. OAuth mailbox read permission, Orchestrate preview access, daily monitoring and body analysis remain independent choices. Metadata is filtered before a bounded inline-body read; attachments are excluded. watsonx.ai receives at most five bounded messages as explicitly untrusted data. The backend rejects malformed or ungrounded output, requires human confirmation, and persists no raw body. Only encrypted structured summaries with bounded metadata and short date evidence are retained, scoped to the current connection/profile/model and physically deleted after90days or immediately when analysis consent is withdrawn.
+
+The daily monitor now summarizes newly detected matches only when both recurring monitoring and content analysis are enabled. It processes five at a time, leaves later messages queued, reuses its account-owned notice after a transient model failure, and never sends, deletes or marks provider messages read. Consent/binding checks are repeated before model access and under final database locks before saving or returning cached results. Relink, disconnect, profile-version changes and expired-summary cleanup have dedicated regression coverage.
+
+Current local verification passed613backend tests with3explicit skips, frontend TypeScript checking, whitespace checks and the14-operation OpenAPI/tool contract. Tests use synthetic messages, provider transports and model results, including hostile instructions, attachment exclusion, streaming-size limits, complete-JSON extraction, exact quoted-date grounding, encryption, retention, cache reuse, batching, failure recovery, cross-account denial and consent/relink races. The real owner-authorized Gmail check is recorded separately below.
+
+All14current Python tools are imported, bound and published on the existing Staytus Agent. The updated artifact passed two-principal isolated Draft and Live profile/audit checks and the full main-Agent Live two-principal check. A separate bounded main-Agent Live case called both `read_recent_official_messages` and the new `summarize_recent_official_messages` for a synthetic account without mail permissions; both denied provider access as expected, the other account was untouched and exact fixtures were cleaned. Private reports: `.local/context-mail-draft.json`, `.local/context-mail-live.json`, `.local/context-mail-product-live.json` and `.local/orchestrate-mail-permission-denial.json`.
+
+The Google mailbox owner enabled both the existing preview choice and the separate content-analysis choice in the public Connections page. The first real request proved Gmail metadata/body reads and watsonx.ai HTTP200 but rejected the model's nonconforming JSON and retained no body or summary. A bounded parser correction was released: it extracts only one complete JSON object with the required top-level key and permits one model correction only for invalid JSON, never for authentication/network/service errors. Forty-eight focused tests and the full613-test backend suite passed. The second real request returned HTTP200 after the controlled correction pass and displayed one validated private summary; raw body and attachments were not retained. The existing Outlook administrator-consent limitation is unchanged.
 
 ## Searchable profile country selector — 2026-11-04
 

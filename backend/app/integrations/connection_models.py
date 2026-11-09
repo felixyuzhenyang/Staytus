@@ -32,9 +32,11 @@ class ProviderConnection(Base):
 
 
 class MailAgentPermission(Base):
-    """OAuth access alone is not consent to share mailbox previews with a model."""
+    """OAuth access alone is not consent to share or analyze mailbox content."""
     __tablename__ = "mail_agent_permissions"
     account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"), primary_key=True)
     provider: Mapped[str] = mapped_column(String, primary_key=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    content_analysis_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    content_analysis_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now)

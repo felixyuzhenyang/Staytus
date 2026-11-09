@@ -57,7 +57,7 @@ export default function MailboxMonitorCard({ provider, connection, onSessionExpi
   }
   return <div className="email-provider">
     <h3>{provider === "google" ? "Gmail" : "Outlook"} inbox checks</h3>
-    <p className="muted">Check recent international-student messages on demand or once a day. Background checking is a separate choice from sharing previews with the chat assistant. No messages are sent, marked read or added to the public policy library.</p>
+    <p className="muted">Check recent international-student messages on demand or once a day. Background checking is separate from chat-preview access. If matching email-content analysis is also enabled above, newly detected matches can receive a private watsonx.ai summary. No messages are sent, marked read or added to the public policy library.</p>
     <ErrorNotice message={error} />
     {!ready && <p className="scope-note">Connect this mailbox with reading permission above before enabling checks.</p>}
     <label className="agent-mail-choice"><input type="checkbox" checked={!!monitor?.enabled && !!monitor?.consent_current} disabled={!ready || !monitor || busy} onChange={event => void save(event.target.checked)} /><span><strong>Allow a daily background inbox check</strong><small>New matching messages create a private in-app notice. Staytus retains message fingerprints and check status, not full bodies or attachments. Relinking the mailbox requires renewed consent.</small></span></label>

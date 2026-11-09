@@ -15,6 +15,7 @@ from sqlalchemy import select
 from app.auth import digest, mint_tool_context
 from app.integrations import connectors
 from app.integrations.connection_models import MailAgentPermission, OAuthAttempt, ProviderConnection
+from app.mail_analysis_models import MailMessageAnalysis
 from app.models import Approval, AuthSession, now
 from conftest import login
 
@@ -386,11 +387,21 @@ def test_agent_mail_limit_rejected_before_provider_network(env, student, oauth):
 
 def test_relink_and_disconnect_reset_agent_sharing_permission(env, student, oauth):
     client, factory = env
-    add_connection(factory, oauth, scopes=[READ])
+    connection_id = add_connection(factory, oauth, scopes=[READ])
     client.patch("/api/v1/connections/google/agent-access", headers=student, json={"enabled": True})
+    client.patch("/api/v1/connections/google/content-analysis", headers=student, json={"enabled": True})
+    with factory() as db:
+        db.add(MailMessageAnalysis(account_id="account-mei-lin", profile_id="mei-lin", profile_version=1,
+            provider="google", connection_id=connection_id, message_hash="a" * 64,
+            encrypted_result="synthetic-encrypted-value", model_id="synthetic-model",
+            expires_at=now() + timedelta(days=1)))
+        db.commit()
     state, _ = start(client, student)
     assert callback(client, student, state).status_code == 303
-    assert client.get("/api/v1/connections", headers=student).json()["providers"][0]["agent_access"] is False
+    status = client.get("/api/v1/connections", headers=student).json()["providers"][0]
+    assert status["agent_access"] is False and status["content_analysis_enabled"] is False
+    with factory() as db:
+        assert db.scalar(select(MailMessageAnalysis)) is None
     client.patch("/api/v1/connections/google/agent-access", headers=student, json={"enabled": True})
     client.delete("/api/v1/connections/google", headers=student)
     with factory() as db:

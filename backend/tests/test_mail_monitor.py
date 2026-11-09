@@ -11,10 +11,12 @@ from sqlalchemy.orm import sessionmaker
 
 from app import mail_monitor as m
 from app.integrations import connectors
+from app.integrations.connection_models import MailAgentPermission, ProviderConnection
 from app.auth import digest
 from app.db import Base, get_db
 from database_support import isolated_engine
 from app.mail_monitor_models import MailMonitorPreference, MailMonitorSeen
+from app.mail_analysis_models import MailMessageAnalysis
 from app.models import Account, AuthSession, Profile, now
 from app.notification_models import ReminderNotice
 from test_connectors import oauth as connector_oauth, add_connection, HTTPX_CLIENT
@@ -137,6 +139,99 @@ def test_daily_read_deduplicates_and_isolates(store):
         assert db.scalar(select(func.count()).select_from(ReminderNotice))==1
         assert db.scalar(select(func.count()).select_from(MailMonitorSeen))==1
         assert db.get(MailMonitorPreference,("b","google")) is None
+
+
+def test_daily_read_generates_private_summary_only_with_separate_content_consent(store, monkeypatch):
+    factory, identities = store
+    enable(factory)
+    with factory() as db:
+        db.add(ProviderConnection(id="c-a", account_id="a", provider="google", encrypted_tokens="unused", scopes=[]))
+        db.add(MailAgentPermission(account_id="a", provider="google", enabled=False,
+            content_analysis_enabled=True, updated_at=STAMP))
+        db.commit()
+    identities["a"]["connection_id"] = "c-a"
+    calls = []
+    def analyze(db, account_id, profile, provider, **kwargs):
+        calls.append((account_id, profile.id, provider, kwargs["previews"]))
+        assert kwargs["consent_check"](db) is True
+        return [{"id": "encrypted-summary-record"}]
+    monkeypatch.setattr("app.mail_analysis.analyze_matching_messages", analyze)
+    result = m.run_mail_monitor_once(factory, stamp=STAMP, reader=reader)
+    assert result == {"checked": 1, "failed": 0, "new_relevant_count": 1}
+    assert calls and calls[0][:3] == ("a", "pa", "google")
+    with factory() as db:
+        checked = m.check_mailbox(db, "a", "google", stamp=STAMP + timedelta(minutes=5), reader=lambda *a, **k: {"messages": []})
+        assert "authorized to share matching body text" not in checked["notice"]
+    with factory() as db:
+        notice = db.scalar(select(ReminderNotice))
+        assert notice.data["analysis_count"] == 1 and "private AI summary" in notice.message
+
+
+def test_content_analysis_batches_leave_later_messages_for_the_next_check(store, monkeypatch):
+    factory, identities = store
+    enable(factory)
+    with factory() as db:
+        db.add(ProviderConnection(id="c-a", account_id="a", provider="google", encrypted_tokens="unused", scopes=[]))
+        db.add(MailAgentPermission(account_id="a", provider="google", content_analysis_enabled=True))
+        db.commit()
+    identities["a"]["connection_id"] = "c-a"
+    messages = [{"id": f"message-{index}", "subject": "Synthetic ISSS reminder"} for index in range(7)]
+    def many(*args, **kwargs):
+        return {"messages": messages}
+    def analyze(db, account_id, profile, provider, **kwargs):
+        assert kwargs["consent_check"](db) is True
+        return [{"id": f"summary-{item['id']}"} for item in kwargs["previews"]]
+    monkeypatch.setattr("app.mail_analysis.analyze_matching_messages", analyze)
+    assert m.run_mail_monitor_once(factory, stamp=STAMP, reader=many)["new_relevant_count"] == 7
+    with factory() as db:
+        assert db.scalar(select(func.count()).select_from(MailMonitorSeen)) == 5
+    assert m.run_mail_monitor_once(factory, stamp=STAMP + timedelta(days=1), reader=many)["new_relevant_count"] == 2
+    with factory() as db:
+        assert db.scalar(select(func.count()).select_from(MailMonitorSeen)) == 7
+
+
+def test_transient_analysis_failure_reuses_notice_without_poisoning_retry(store, monkeypatch):
+    factory, identities = store
+    enable(factory)
+    with factory() as db:
+        db.add(ProviderConnection(id="c-a", account_id="a", provider="google", encrypted_tokens="unused", scopes=[]))
+        db.add(MailAgentPermission(account_id="a", provider="google", content_analysis_enabled=True))
+        db.commit()
+    identities["a"]["connection_id"] = "c-a"
+    attempts = []
+    def analyze(db, account_id, profile, provider, **kwargs):
+        attempts.append(True)
+        if len(attempts) == 1:
+            raise HTTPException(502, "synthetic temporary model failure")
+        return [{"id": "summary-ready"}]
+    monkeypatch.setattr("app.mail_analysis.analyze_matching_messages", analyze)
+    assert m.run_mail_monitor_once(factory, stamp=STAMP, reader=reader) == {
+        "checked": 1, "failed": 0, "new_relevant_count": 1}
+    with factory() as db:
+        assert db.scalar(select(func.count()).select_from(ReminderNotice)) == 1
+        assert db.scalar(select(func.count()).select_from(MailMonitorSeen)) == 0
+    assert m.run_mail_monitor_once(factory, stamp=STAMP + timedelta(days=1), reader=reader) == {
+        "checked": 1, "failed": 0, "new_relevant_count": 1}
+    with factory() as db:
+        notice = db.scalar(select(ReminderNotice))
+        assert db.scalar(select(func.count()).select_from(ReminderNotice)) == 1
+        assert notice.data["analysis_count"] == 1 and notice.read_at is None
+        assert db.scalar(select(func.count()).select_from(MailMonitorSeen)) == 1
+
+
+def test_daily_job_physically_deletes_expired_encrypted_summaries(store):
+    factory, _ = store
+    with factory() as db:
+        db.add(ProviderConnection(id="expired-connection", account_id="a", provider="google",
+            encrypted_tokens="unused", scopes=[]))
+        db.add(MailMessageAnalysis(account_id="a", profile_id="pa", profile_version=1,
+            provider="google", connection_id="expired-connection", message_hash="b" * 64,
+            encrypted_result="synthetic-encrypted-value", model_id="synthetic-model",
+            generated_at=STAMP - timedelta(days=91), expires_at=STAMP - timedelta(seconds=1)))
+        db.commit()
+    assert m.run_mail_monitor_once(factory, stamp=STAMP, reader=reader)["checked"] == 0
+    with factory() as db:
+        assert db.scalar(select(MailMessageAnalysis)) is None
 
 
 @pytest.mark.parametrize("mode",["relink","disconnect"])

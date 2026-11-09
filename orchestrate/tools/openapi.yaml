@@ -13,6 +13,25 @@ security:
   - ToolServiceKey: []
     StaytusSessionContext: []
 paths:
+  /tools/summarize_recent_official_messages:
+    post:
+      operationId: summarize_recent_official_messages
+      summary: Summarize matching official-topic email content after explicit user content-analysis consent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [provider]
+              properties:
+                provider: {type: string, enum: [google, microsoft]}
+                limit: {type: integer, minimum: 1, maximum: 5, default: 5}
+      responses:
+        '200': {$ref: '#/components/responses/Object'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: User has not enabled matching email-content analysis}
   /tools/read_recent_official_messages:
     post:
       operationId: read_recent_official_messages

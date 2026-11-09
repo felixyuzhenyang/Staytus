@@ -183,7 +183,7 @@ def test_wrapper_binding_check_passes_for_actual_source(preflight_module):
     result = preflight_module.wrapper_binding_check()
     assert result["source_present"] is True
     assert result["all_bindings_valid"] is True, result
-    assert result["tool_count"] == 13
+    assert result["tool_count"] == 14
     assert result["missing_credential_binding"] == []
     assert result["missing_context_param"] == []
     assert result["missing_agent_run_annotation"] == []

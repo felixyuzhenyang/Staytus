@@ -1,4 +1,4 @@
-"""Daily, explicitly opted-in INBOX checks; no sending or cloud-model access."""
+"""Daily, explicitly opted-in INBOX checks with separately authorized summarization."""
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import threading
@@ -73,8 +73,11 @@ def _current_binding(db, row):
 
 
 def state(db, row):
+    from app.integrations.connection_models import MailAgentPermission
     identity = _identity(db, row.account_id, row.provider)
     current = bool(identity and identity.get("connection_id") == row.connection_id)
+    permission = db.get(MailAgentPermission, (row.account_id, row.provider))
+    content_analysis = bool(permission and permission.content_analysis_enabled)
     return {"provider": row.provider, "enabled": bool(row.enabled and current),
         "consent_current": bool(row.enabled and current), "connected": bool(identity),
         "mailbox": identity.get("email") if identity else None,
@@ -83,8 +86,9 @@ def state(db, row):
         "frequency": "daily", "next_check_at": _iso(row.next_check_at) if row.enabled and current else None,
         "last_check_at": _iso(row.last_check_at), "last_error_code": row.last_error_code,
         "scope": "Bounded matching official-topic messages in the inbox from the last30days",
-        "message_bodies_stored": False, "model_sharing_enabled_by_monitor": False,
-        "notice": "Background reading needs this separate opt-in. Mail is untrusted and does not establish policy. Backend must remain running."}
+        "message_bodies_stored": False, "model_sharing_enabled_by_monitor": bool(row.enabled and current and content_analysis),
+        "content_analysis_enabled": content_analysis,
+        "notice": "Background reading needs this separate opt-in. When email-content analysis is also enabled, only newly detected matching body text is summarized by watsonx.ai. Raw bodies and attachments are not retained; encrypted summaries include the subject, sender and short quoted date evidence and are deleted after 90 days. Mail is untrusted and does not establish policy."}
 
 
 def _iso(value):
@@ -181,17 +185,60 @@ def check_mailbox(db, account_id, provider, *, background=False, stamp=None, rea
             MailMonitorSeen.provider == provider, MailMonitorSeen.connection_id == connection_id,
             MailMonitorSeen.message_hash == hashed))
         if not seen:
+            fresh.append((hashed, message))
+    analysis_count = 0
+    content_analysis_authorized = False
+    if fresh:
+        from app.integrations.connection_models import MailAgentPermission
+        permission = db.get(MailAgentPermission, (account_id, provider))
+        content_analysis_authorized = bool(permission and permission.content_analysis_enabled)
+        if content_analysis_authorized:
+            def monitor_consent_current(session):
+                current = session.scalar(select(MailMonitorPreference).where(
+                    MailMonitorPreference.account_id == account_id,
+                    MailMonitorPreference.provider == provider).with_for_update())
+                return _still_current(session, current, token, revision, connection_id, background)
+            try:
+                from app.mail_analysis import analyze_matching_messages
+                analysis_count = len(analyze_matching_messages(db, account_id, profile, provider,
+                    limit=min(5, len(fresh)), previews=[message for _, message in fresh[:5]],
+                    consent_check=monitor_consent_current))
+            except HTTPException:
+                # A normal count notice remains useful. No raw body is retained.
+                analysis_count = 0
+            db.expire_all()
+            current_permission = db.get(MailAgentPermission, (account_id, provider))
+            content_analysis_authorized = bool(current_permission and current_permission.content_analysis_enabled)
+            row = db.get(MailMonitorPreference, (account_id, provider))
+            if not _still_current(db, row, token, revision, connection_id, background):
+                db.rollback()
+                raise HTTPException(409, "Mailbox consent or connection changed; results discarded")
+        to_mark = fresh if not content_analysis_authorized else (fresh[:5] if analysis_count else [])
+        for hashed, _ in to_mark:
             db.add(MailMonitorSeen(account_id=account_id, provider=provider, connection_id=connection_id,
                 message_hash=hashed, first_seen_at=stamp))
-            fresh.append(hashed)
-            db.flush()
+        db.flush()
     if fresh:
-        batch = sha256("".join(sorted(fresh)).encode()).hexdigest()
-        db.add(ReminderNotice(account_id=account_id, profile_id=profile.id,
-            dedup_key=f"mail:{provider}:{batch}", kind="mailbox_update", title="Relevant messages in your connected inbox",
-            message=f"Found {len(fresh)} newly detected official-topic message(s). Open Connections to inspect them and verify important details in your original mailbox. Email content is untrusted and does not establish a policy change.",
-            data={"provider": provider, "new_message_count": len(fresh), "untrusted_content": True,
-                "review_required": True, "source": "connected_mailbox", "policy_authority": False}, created_at=stamp))
+        hashes = [hashed for hashed, _ in fresh]
+        batch = sha256("".join(sorted(hashes)).encode()).hexdigest()
+        dedup_key = f"mail:{provider}:{batch}"
+        message = (f"Found {len(fresh)} newly detected official-topic message(s)." +
+            (f" {analysis_count} private AI summary/summaries are ready in Connections." if analysis_count else "") +
+            (f" {len(fresh) - len(to_mark)} message(s) remain queued for a later analysis batch."
+                if len(to_mark) < len(fresh) and content_analysis_authorized else "") +
+            " Open Connections and verify important details in your original mailbox. Email content is untrusted and does not establish a policy change.")
+        data = {"provider": provider, "new_message_count": len(fresh), "untrusted_content": True,
+            "analysis_count": analysis_count, "review_required": True,
+            "source": "connected_mailbox", "policy_authority": False}
+        notice = db.scalar(select(ReminderNotice).where(
+            ReminderNotice.profile_id == profile.id, ReminderNotice.dedup_key == dedup_key))
+        if notice is None:
+            db.add(ReminderNotice(account_id=account_id, profile_id=profile.id,
+                dedup_key=dedup_key, kind="mailbox_update", title="Relevant messages in your connected inbox",
+                message=message, data=data, created_at=stamp))
+        else:
+            notice.message, notice.data, notice.created_at = message, data, stamp
+            notice.read_at = notice.popup_seen_at = notice.superseded_at = None
     completed = db.execute(update(MailMonitorPreference).where(
         MailMonitorPreference.account_id == account_id, MailMonitorPreference.provider == provider,
         MailMonitorPreference.revision == revision, MailMonitorPreference.lease_token == token,
@@ -201,9 +248,13 @@ def check_mailbox(db, account_id, provider, *, background=False, stamp=None, rea
         db.rollback()
         raise HTTPException(409, "Mailbox consent changed; results discarded")
     db.commit()
-    return {"provider": provider, "new_relevant_count": len(fresh), "checked_at": _iso(stamp),
+    return {"provider": provider, "new_relevant_count": len(fresh), "analysis_count": analysis_count,
+        "checked_at": _iso(stamp),
         "messages": messages if not background else [], "untrusted_content": True,
-        "partial_window": True, "notice": "Checked a bounded recent inbox window; this is not a complete mailbox archive. No message was sent, marked read or shared with a model."}
+        "partial_window": True, "notice": ("Checked a bounded recent inbox window; this is not a complete mailbox archive. "
+            + ("This check was authorized to share matching body text with watsonx.ai; raw bodies were not retained. "
+                if fresh and content_analysis_authorized else "No message body was authorized for model analysis during this check. ")
+            + "No message was sent or marked read.")}
 
 
 def _still_current(db, row, token, revision, connection_id, background):
@@ -239,6 +290,9 @@ def run_mail_monitor_once(factory=SessionLocal, *, stamp=None, reader=None):
     result = {"checked": 0, "failed": 0, "new_relevant_count": 0}
     try:
         with factory() as db:
+            from app.mail_analysis import purge_expired_analyses
+            purge_expired_analyses(db, stamp)
+            db.commit()
             due = list(db.execute(select(MailMonitorPreference.account_id, MailMonitorPreference.provider).where(
                 MailMonitorPreference.enabled.is_(True), MailMonitorPreference.next_check_at <= stamp)
                 .order_by(MailMonitorPreference.next_check_at).limit(100)))

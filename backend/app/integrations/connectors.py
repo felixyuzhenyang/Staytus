@@ -10,6 +10,8 @@ import math
 import re
 import secrets
 import time
+from html import unescape
+from html.parser import HTMLParser
 from datetime import date, datetime, timedelta, timezone
 from email.message import EmailMessage
 from email.utils import parseaddr
@@ -54,6 +56,11 @@ class ConnectionStart(BaseModel):
 
 
 class AgentMailAccess(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool
+
+
+class MailContentAnalysisAccess(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: bool
 
@@ -365,6 +372,7 @@ def connections(session: AuthSession = Depends(get_current_session), db: Session
             "calendar_write": bool(connection and _can_calendar(connection)),
             "email_identity_verified": verified_connected_email(db, session.account_id, name) is not None,
             "agent_access": bool(connection and permission and permission.enabled),
+            "content_analysis_enabled": bool(connection and permission and permission.content_analysis_enabled),
             "last_sync_at": connection.last_sync_at.isoformat() + "Z" if connection and connection.last_sync_at else None})
     from app.integrations.icloud_calendar import describe_connection
     rows.append(describe_connection(db, session.account_id))
@@ -437,13 +445,21 @@ def oauth_callback(provider: str, state: str = Query(min_length=20, max_length=2
         identity = _resolve_mailbox_identity(provider, tokens, granted)
         if identity:
             tokens["mailbox_identity"] = identity
-        connection = _connection(db, attempt.account_id, provider)
+        connection = db.scalar(select(ProviderConnection).where(
+            ProviderConnection.account_id == attempt.account_id,
+            ProviderConnection.provider == provider).with_for_update())
         if connection is None:
             connection = ProviderConnection(account_id=attempt.account_id, provider=provider)
             db.add(connection)
         else:
             # A fresh grant is a fresh connection binding, even for the same
             # address. Existing notification consent must not survive a relink.
+            from app.mail_analysis_models import MailMessageAnalysis
+            db.execute(delete(MailMessageAnalysis).where(
+                MailMessageAnalysis.account_id == attempt.account_id,
+                MailMessageAnalysis.provider == provider,
+                MailMessageAnalysis.connection_id == connection.id))
+            db.flush()
             connection.id = uid()
             connection.created_at = now()
         # Provider-granted scope, if supplied, is authoritative.
@@ -498,7 +514,36 @@ def set_agent_access(provider: str, body: AgentMailAccess, session: AuthSession 
         "scope": "Matching official-topic subjects, senders, dates and short previews only; no attachments or full bodies"}
 
 
-def _mail_get(client, connection, settings, url, *, params=None, deadline=None):
+@router.patch("/{provider}/content-analysis")
+def set_content_analysis(provider: str, body: MailContentAnalysisAccess,
+                         session: AuthSession = Depends(get_current_session), db: Session = Depends(get_db)):
+    """Separate opt-in for matched body text to be summarized by watsonx.ai."""
+    _provider(provider, ConnectorSettings())
+    connection = _connection(db, session.account_id, provider)
+    if connection is None:
+        raise HTTPException(409, "Connect your mail account before changing email-content analysis")
+    if body.enabled and not _can_read(connection):
+        raise HTTPException(409, "Reconnect email with mail_read permission before enabling content analysis")
+    permission = db.get(MailAgentPermission, (session.account_id, provider))
+    if permission is None:
+        permission = MailAgentPermission(account_id=session.account_id, provider=provider)
+        db.add(permission)
+    stamp = now()
+    permission.content_analysis_enabled = body.enabled
+    permission.content_analysis_updated_at = stamp
+    permission.updated_at = stamp
+    if not body.enabled:
+        from app.mail_analysis_models import MailMessageAnalysis
+        db.execute(delete(MailMessageAnalysis).where(MailMessageAnalysis.account_id == session.account_id,
+            MailMessageAnalysis.provider == provider))
+    if session.profile_id:
+        from app.services import audit
+        audit(db, session.profile_id, "mail.content_analysis_changed", {"provider": provider, "enabled": body.enabled})
+    return {"provider": provider, "content_analysis_enabled": body.enabled,
+        "scope": "Only matching official-topic body text; attachments excluded; raw bodies are not retained"}
+
+
+def _mail_get(client, connection, settings, url, *, params=None, deadline=None, max_bytes=None):
     """Read-only requests may renew once after an authentication rejection."""
     token = _access_token(connection, client, settings)
     if not _can_read(connection):
@@ -508,17 +553,37 @@ def _mail_get(client, connection, settings, url, *, params=None, deadline=None):
         if seconds <= 0:
             raise HTTPException(504, "Mailbox preview check timed out; try again later")
         return min(10, seconds)
-    response = client.get(url, params=params, headers={"Authorization": "Bearer " + token}, timeout=remaining())
-    if response.status_code == 401:
+
+    def request_json(access_token):
+        limit = max_bytes or 1_000_000
+        with client.stream("GET", url, params=params, headers={"Authorization": "Bearer " + access_token},
+                           timeout=remaining()) as response:
+            if response.status_code == 401:
+                return 401, None
+            response.raise_for_status()
+            length = response.headers.get("content-length")
+            if length and length.isdigit() and int(length) > limit:
+                raise HTTPException(413, "Matching email content is too large to analyze safely")
+            chunks, total = [], 0
+            for chunk in response.iter_bytes():
+                total += len(chunk)
+                if total > limit:
+                    raise HTTPException(413, "Matching email content is too large to analyze safely")
+                chunks.append(chunk)
+        return response.status_code, json.loads(b"".join(chunks))
+
+    status, value = request_json(token)
+    if status == 401:
         stored = _tokens(connection, settings)
         stored["expires_at"] = 0
         _save_tokens(connection, stored, settings)
         token = _access_token(connection, client, settings)
         if not _can_read(connection):
             raise HTTPException(409, "Mailbox read permission is no longer granted; reconnect the account")
-        response = client.get(url, params=params, headers={"Authorization": "Bearer " + token}, timeout=remaining())
-    response.raise_for_status()
-    return response.json()
+        status, value = request_json(token)
+        if status == 401:
+            raise HTTPException(401, "Mailbox authorization expired; reconnect the account")
+    return value
 
 
 def _graph_recent(value):
@@ -531,6 +596,118 @@ def _graph_recent(value):
 
 def _short_text(value, length=1000):
     return re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", str(value or ""))[:length]
+
+
+class _BodyTextParser(HTMLParser):
+    """Extract visible text without loading external content or retaining markup."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts, self.hidden = [], 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() in {"script", "style", "head", "svg", "canvas"}:
+            self.hidden += 1
+        elif tag.lower() in {"br", "p", "div", "li", "tr", "h1", "h2", "h3", "h4"}:
+            self.parts.append("\n")
+
+    def handle_endtag(self, tag):
+        if tag.lower() in {"script", "style", "head", "svg", "canvas"} and self.hidden:
+            self.hidden -= 1
+        elif tag.lower() in {"p", "div", "li", "tr"}:
+            self.parts.append("\n")
+
+    def handle_data(self, data):
+        if not self.hidden:
+            self.parts.append(data)
+
+
+def _plain_body(value, *, html=False, limit=12000):
+    text = str(value or "")
+    if html:
+        parser = _BodyTextParser()
+        try:
+            parser.feed(text[:100000])
+            text = "".join(parser.parts)
+        except (ValueError, TypeError):
+            text = ""
+    text = unescape(text)
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", text)
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    return text[:limit]
+
+
+def _gmail_part_text(payload):
+    plain, html = [], []
+
+    def walk(part, depth=0):
+        if depth > 12 or not isinstance(part, dict):
+            return
+        body = part.get("body") if isinstance(part.get("body"), dict) else {}
+        filename = part.get("filename")
+        # Inline text only. Attachment IDs and named MIME parts are never fetched.
+        if not filename and not body.get("attachmentId") and isinstance(body.get("data"), str):
+            encoded = body["data"]
+            if len(encoded) <= 100000:
+                try:
+                    decoded = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)).decode("utf-8", "replace")
+                    mime = str(part.get("mimeType", "")).lower()
+                    if mime == "text/plain":
+                        plain.append(decoded)
+                    elif mime == "text/html":
+                        html.append(decoded)
+                except (ValueError, TypeError):
+                    pass
+        for child in part.get("parts", []) if isinstance(part.get("parts"), list) else []:
+            walk(child, depth + 1)
+
+    walk(payload)
+    return _plain_body("\n".join(plain), limit=12000) or _plain_body("\n".join(html), html=True, limit=12000)
+
+
+def read_matching_message_contents(db: Session, account_id: str, provider: str, *, previews=None, limit=5,
+                                   inbox_only=True):
+    """Fetch bounded inline body text only after metadata relevance filtering and explicit consent."""
+    _provider(provider, ConnectorSettings())
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 5:
+        raise HTTPException(422, "Choose between one and five messages to analyze")
+    connection = _connection(db, account_id, provider)
+    if connection is None or not _can_read(connection):
+        raise HTTPException(409, "Connect this mailbox with read permission first")
+    permission = db.get(MailAgentPermission, (account_id, provider))
+    if not (permission and permission.content_analysis_enabled):
+        raise HTTPException(403, "Enable matching email-content analysis in Connections first")
+    candidates = previews
+    if candidates is None:
+        candidates = read_recent_messages(db, account_id, provider, limit=limit, inbox_only=inbox_only)["messages"]
+    candidates = [item for item in candidates if isinstance(item, dict) and isinstance(item.get("id"), str)][:limit]
+    result, settings = [], ConnectorSettings()
+    deadline = time.monotonic() + 30
+    try:
+        with httpx.Client(timeout=10, follow_redirects=False) as client:
+            for item in candidates:
+                if not _relevant(item.get("from", ""), item.get("subject", "")):
+                    continue
+                message_id = quote(item["id"], safe="")
+                if provider == "google":
+                    value = _mail_get(client, connection, settings,
+                        f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}",
+                        params={"format": "full"}, deadline=deadline, max_bytes=250000)
+                    content = _gmail_part_text(value.get("payload", {}))
+                else:
+                    value = _mail_get(client, connection, settings,
+                        f"https://graph.microsoft.com/v1.0/me/messages/{message_id}",
+                        params={"$select": "id,subject,from,receivedDateTime,body"}, deadline=deadline, max_bytes=250000)
+                    body = value.get("body") if isinstance(value.get("body"), dict) else {}
+                    content = _plain_body(body.get("content"), html=str(body.get("contentType", "")).lower() == "html")
+                if content:
+                    result.append({"id": item["id"], "subject": _short_text(item.get("subject"), 300),
+                        "from": _short_text(item.get("from"), 320), "received_at": _short_text(item.get("received_at"), 100),
+                        "content": content})
+        return {"provider": provider, "connection_id": connection.id, "messages": result,
+            "scope": "Matching official-topic inline body text only; attachments excluded", "untrusted_content": True}
+    except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError) as failure:
+        raise HTTPException(502, "Matching email content could not be read; check the connection and retry") from failure
 
 
 def read_recent_messages(db: Session, account_id: str, provider: str, *, limit=20, for_agent=False, inbox_only=False):

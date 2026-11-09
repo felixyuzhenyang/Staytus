@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api-client";
 import { actionOutcome } from "@/lib/action-outcome";
 import type { AssistantPreferences, AssistantUpdate, AssistantUpdatePage, ChatHistory } from "@/lib/types";
-import type { Approval, AuditEvent, CalendarProvider, ChatMessage, ChatResponse, Connection, DashboardData, Deadline, MailMessage, OAuthCapability, PlanningRequest, Policy, Profile, Review, SourceStatus, Tab } from "@/lib/types";
+import type { Approval, AuditEvent, CalendarProvider, ChatMessage, ChatResponse, Connection, DashboardData, Deadline, MailAnalysis, MailMessage, OAuthCapability, PlanningRequest, Policy, Profile, Review, SourceStatus, Tab } from "@/lib/types";
 
 type Options = { onSessionExpired: () => void; onProfileUpdated: (profile: Profile) => void };
 
@@ -18,6 +18,7 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   const [integrations, setIntegrations] = useState<Record<string, unknown>>({});
   const [connections, setConnections] = useState<Connection[]>([]);
   const [mailMessages, setMailMessages] = useState<MailMessage[]>([]);
+  const [mailAnalyses, setMailAnalyses] = useState<MailAnalysis[]>([]);
   const [mailboxLoaded, setMailboxLoaded] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [assistantUpdates, setAssistantUpdates] = useState<AssistantUpdate[]>([]);
@@ -114,7 +115,13 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
         if (!controller.signal.aborted) setReviews(result.reviews);
       } else if (tab === "connections") {
         const [integrationResult, connectionResult] = await Promise.all([api<Record<string, unknown>>("integration-status", options), api<{ providers: Connection[] }>("connections", options)]);
-        if (!controller.signal.aborted) { setIntegrations(integrationResult); setConnections(connectionResult.providers); }
+        const analysisResults = await Promise.all(connectionResult.providers.filter(item =>
+          ["google", "microsoft"].includes(item.provider) && item.content_analysis_enabled).map(item =>
+            api<{ analyses: MailAnalysis[] }>(`connections/${item.provider}/analyses`, options)));
+        if (!controller.signal.aborted) {
+          setIntegrations(integrationResult); setConnections(connectionResult.providers);
+          setMailAnalyses(analysisResults.flatMap(result => result.analyses));
+        }
       } else if (tab === "assistant" && !requestLock.current) {
         const version = chatRevision.current;
         const result = await api<ChatHistory>("chat/history", options);
@@ -308,7 +315,7 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   async function disconnect(provider: "google" | "microsoft") {
     await action(`disconnect-${provider}`, async requestSignal => {
       await api(`connections/${provider}`, { method: "DELETE", signal: requestSignal });
-      if (!requestSignal.aborted) { setMailMessages([]); setMailboxLoaded(false); setRevision(value => value + 1); setToast("Email connection removed."); }
+      if (!requestSignal.aborted) { setMailMessages([]); setMailAnalyses(previous => previous.filter(item => item.provider !== provider)); setMailboxLoaded(false); setRevision(value => value + 1); setToast("Email connection removed."); }
     });
   }
   async function readMail(provider: "google" | "microsoft") {
@@ -326,7 +333,27 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
       }
     });
   }
+  async function setMailContentAnalysis(provider: "google" | "microsoft", enabled: boolean) {
+    await action(`content-mail-${provider}`, async requestSignal => {
+      await api(`connections/${provider}/content-analysis`, { method: "PATCH", body: JSON.stringify({ enabled }), signal: requestSignal });
+      if (!requestSignal.aborted) {
+        setConnections(previous => previous.map(item => item.provider === provider ? { ...item, content_analysis_enabled: enabled } : item));
+        if (!enabled) setMailAnalyses(previous => previous.filter(item => item.provider !== provider));
+        setToast(enabled ? "Matching email-content analysis is enabled. Raw bodies and attachments are not retained." : "Email-content analysis disabled and saved summaries removed.");
+      }
+    }, "connections");
+  }
+  async function analyzeMail(provider: "google" | "microsoft") {
+    await action(`analyze-mail-${provider}`, async requestSignal => {
+      const result = await api<{ analyses: MailAnalysis[] }>(`connections/${provider}/analyze`, {
+        method: "POST", body: JSON.stringify({ limit: 5 }), signal: requestSignal });
+      if (!requestSignal.aborted) {
+        setMailAnalyses(previous => [...result.analyses, ...previous.filter(item => item.provider !== provider)]);
+        setToast(result.analyses.length ? `Analyzed ${result.analyses.length} matching message(s). Verify important details in the original mailbox.` : "No matching message content was available to analyze.");
+      }
+    }, "connections");
+  }
   const closeApproval = useCallback(() => setSelected(null), []);
   const closeCalendar = useCallback(() => setCalendarDeadline(null), []);
-  return { tab, setTab, dashboard, policies, sources, approvals, events, reviews, integrations, connections, mailMessages, mailboxLoaded, messages, assistantUpdates, assistantUnread, assistantHistory, hideAssistantUpdates, newChat, loadAssistantHistory, assistantPreferences, readAssistantUpdate, saveAssistantPreferences, checkAssistantUpdates, selected, calendarDeadline, createCalendar, closeCalendar, query, setQuery, error: errors[tab] || "", clearError: () => setErrors(previous => ({ ...previous, [tab]: "" })), toast, clearToast: () => setToast(""), loading, busy, refresh: () => setRevision(value => value + 1), sendChat, saveProfile, inspect, decide, remind, captureSources, connect, disconnect, readMail, setMailAgentAccess, closeApproval };
+  return { tab, setTab, dashboard, policies, sources, approvals, events, reviews, integrations, connections, mailMessages, mailAnalyses, mailboxLoaded, messages, assistantUpdates, assistantUnread, assistantHistory, hideAssistantUpdates, newChat, loadAssistantHistory, assistantPreferences, readAssistantUpdate, saveAssistantPreferences, checkAssistantUpdates, selected, calendarDeadline, createCalendar, closeCalendar, query, setQuery, error: errors[tab] || "", clearError: () => setErrors(previous => ({ ...previous, [tab]: "" })), toast, clearToast: () => setToast(""), loading, busy, refresh: () => setRevision(value => value + 1), sendChat, saveProfile, inspect, decide, remind, captureSources, connect, disconnect, readMail, setMailAgentAccess, setMailContentAnalysis, analyzeMail, closeApproval };
 }

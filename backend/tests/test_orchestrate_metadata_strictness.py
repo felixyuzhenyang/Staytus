@@ -163,8 +163,9 @@ def test_wrong_bound_connection_uuid_is_not_verified(metadata_world):
 
 def test_real_wrapper_app_id_constant_is_resolved_without_sdk_or_env(metadata_module):
     result = metadata_module.wrapper_binding_check()
-    assert result["tool_count"] == 13
+    assert result["tool_count"] == 14
     assert "read_recent_official_messages" in result["tool_names"]
+    assert "summarize_recent_official_messages" in result["tool_names"]
     assert result["all_bindings_valid"] is True
     assert result.get("missing_credential_binding", []) == []
 

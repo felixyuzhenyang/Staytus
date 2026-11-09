@@ -12,9 +12,11 @@ type Props = {
   onDisconnect: (provider: Provider) => Promise<void>;
   onReadMail: (provider: Provider) => Promise<void>;
   onAgentAccess: (provider: Provider, enabled: boolean) => Promise<void>;
+  onContentAnalysis: (provider: Provider, enabled: boolean) => Promise<void>;
+  onAnalyzeMail: (provider: Provider) => Promise<void>;
 };
 
-export default function EmailProviderCard({ provider, connection, busy, onConnect, onDisconnect, onReadMail, onAgentAccess }: Props) {
+export default function EmailProviderCard({ provider, connection, busy, onConnect, onDisconnect, onReadMail, onAgentAccess, onContentAnalysis, onAnalyzeMail }: Props) {
   const connected = connection?.connected === true;
   const available = connection?.configured === true || connected;
   const scopes = connection?.scopes || [];
@@ -37,6 +39,7 @@ export default function EmailProviderCard({ provider, connection, busy, onConnec
       <Badge tone={connected ? "green" : available ? "blue" : "neutral"}>{connected ? <><Check size={11} />{calendarEnabled && !readsEnabled ? "Calendar connected" : draftsEnabled ? "Drafts enabled" : "Read only"}</> : available ? "Ready to connect" : "Setup needed"}</Badge>
       {connected ? <div className="provider-actions">
         {readsEnabled ? <button className="button secondary compact" disabled={busy} onClick={() => void onReadMail(provider)}>Check messages</button> : <button className="button secondary compact" disabled={busy} onClick={() => void onConnect(provider, "mail_read")}>Enable email reading</button>}
+        {readsEnabled && connection?.content_analysis_enabled && <button className="button secondary compact" disabled={busy} onClick={() => void onAnalyzeMail(provider)}>Analyze matching emails</button>}
         {readsEnabled && !draftsEnabled && <button className="button secondary compact" disabled={busy} onClick={() => void onConnect(provider, "mail_draft")}>Enable email drafts</button>}
         {!calendarEnabled && <button className="button secondary compact" disabled={busy} onClick={() => void onConnect(provider, "calendar_write")}>Enable calendar writing</button>}
         {calendarEnabled && <Badge tone="green">Calendar writing enabled</Badge>}
@@ -46,6 +49,10 @@ export default function EmailProviderCard({ provider, connection, busy, onConnec
     {connected && readsEnabled && <label className="agent-mail-choice">
       <input type="checkbox" checked={connection?.agent_access === true} disabled={busy} onChange={event => void onAgentAccess(provider, event.target.checked)} />
       <span><strong>Allow assistant to read matching email previews</strong><small>When you ask, the IBM agent can receive recent matching subjects, senders, dates and short previews. Full bodies and attachments are excluded. You can turn this off separately from your mailbox connection.</small></span>
+    </label>}
+    {connected && readsEnabled && <label className="agent-mail-choice">
+      <input type="checkbox" checked={connection?.content_analysis_enabled === true} disabled={busy} onChange={event => void onContentAnalysis(provider, event.target.checked)} />
+      <span><strong>Allow Staytus to analyze matching email content</strong><small>Only messages matching the official international-student filters are opened. Bounded inline body text is sent to IBM watsonx.ai when you click Analyze, ask the assistant, or when an enabled daily inbox check finds a new match. Attachments and raw bodies are not retained. Encrypted summaries keep the subject, sender and short quoted date evidence for up to 90 days, then are deleted. Turn this off to delete them now.</small></span>
     </label>}
     {connection?.setup && <details className="email-setup">
       <summary>{available ? "Developer connection settings" : "Set up email sign-in"}</summary>
