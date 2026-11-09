@@ -32,9 +32,15 @@ class NodeNote(StrictModel):
     explanation: str = Field(min_length=1, max_length=500)
 
 
+class OptionalNodeSelection(StrictModel):
+    id: str = Field(min_length=1, max_length=60)
+    explanation: str = Field(min_length=1, max_length=500)
+
+
 class PlanNarrative(StrictModel):
     summary: str = Field(min_length=1, max_length=700)
     node_notes: list[NodeNote] = Field(min_length=1, max_length=12)
+    optional_nodes: list[OptionalNodeSelection] = Field(default_factory=list, max_length=3)
 
 
 def json_object(text):
@@ -126,12 +132,39 @@ def request_from_envelope(envelope, message, profile, previous=None):
     return PlanningRequest.model_validate(values)
 
 
-def parse_narrative(text, plan):
+def _narrative_data(text):
     data = json_object(text)
     # Providers sometimes serialize equivalent node notes as an ID-keyed map.
     # Normalize only this lossless shape; never fill missing/model-free text.
     if isinstance(data, dict) and isinstance(data.get("node_notes"), dict) and all(isinstance(value, str) for value in data["node_notes"].values()):
         data["node_notes"] = [{"id": key, "explanation": value} for key, value in data["node_notes"].items()]
+    if isinstance(data, dict) and isinstance(data.get("optional_nodes"), dict) and all(isinstance(value, str) for value in data["optional_nodes"].values()):
+        data["optional_nodes"] = [{"id": key, "explanation": value} for key, value in data["optional_nodes"].items()]
+    return data
+
+
+def parse_narrative(text, plan):
+    data = _narrative_data(text)
+    result = PlanNarrative.model_validate(data)
+    expected = {node["id"] for node in plan["timeline"]["nodes"]}
+    if {note.id for note in result.node_notes} != expected or len(result.node_notes) != len(expected):
+        raise ValueError("Every timeline node needs exactly one explanation")
+    allowed = {node["id"] for node in plan.get("timeline_candidates", [])}
+    selected = [node.id for node in result.optional_nodes]
+    if len(selected) != len(set(selected)) or set(selected) - allowed or set(selected) & expected:
+        raise ValueError("Optional timeline nodes must be unique server-supplied candidate IDs")
+    explanations = [note.explanation for note in result.node_notes] + [node.explanation for node in result.optional_nodes]
+    if len(result.summary.split()) > 100 or any(len(explanation.split()) > 45 for explanation in explanations):
+        raise ValueError("Keep the summary and node explanations brief")
+    return result
+
+
+def parse_core_narrative(text, plan):
+    """Recover a valid core plan when only the optional enhancement is invalid."""
+    data = _narrative_data(text)
+    if not isinstance(data, dict):
+        raise TypeError("A planning response must be a JSON object")
+    data = {key: value for key, value in data.items() if key != "optional_nodes"}
     result = PlanNarrative.model_validate(data)
     expected = {node["id"] for node in plan["timeline"]["nodes"]}
     if {note.id for note in result.node_notes} != expected or len(result.node_notes) != len(expected):
@@ -150,6 +183,8 @@ def narrative_issues(narrative, context):
     # a filing/recommendation interval or a general eligibility claim.
     parts = [("summary", narrative.summary, None)]
     parts += [(note.id, note.explanation, nodes[note.id]) for note in narrative.node_notes]
+    candidates = {node["id"]: node for node in plan.get("timeline_candidates", [])}
+    parts += [(node.id, node.explanation, candidates[node.id]) for node in narrative.optional_nodes if node.id in candidates]
     for key, text, node in parts:
         targets = [node["calendar_target"]] if node and node["date_kind"] == "preparation_target" and node["calendar_target"] else []
         scoped = {**context, "guided_plan": {**plan, "calendar_targets": targets}}

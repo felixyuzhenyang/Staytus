@@ -15,13 +15,20 @@ from app.db import get_db
 from app.guided_planning import (
     PLAN_INSTRUCTIONS,
     PlanningRequest,
-    plan_text_issues,
     planning_message,
     prepare_scenario,
     repair_planning_message,
 )
 from app.models import AuthSession, Profile, now
-from app.planning_protocol import ChatEnvelope, chat_message, json_object, narrative_issues, parse_narrative, request_from_envelope
+from app.planning_protocol import (
+    ChatEnvelope,
+    chat_message,
+    json_object,
+    narrative_issues,
+    parse_core_narrative,
+    parse_narrative,
+    request_from_envelope,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["Agent conversations"])
 
@@ -186,16 +193,31 @@ def chat(body: ChatRequest, session: AuthSession = Depends(require_profile_sessi
             raise ValueError("empty provider reply")
         if plan:
             for attempt in range(2):
-                issues = plan_text_issues(reply.message, context)
+                issues = []
                 try:
                     narrative = parse_narrative(reply.message, plan)
                     issues.extend(narrative_issues(narrative, context))
                 except (ValueError, TypeError):
-                    issues.append("Return a short summary and exactly one node_notes explanation per supplied timeline node, using the required JSON schema.")
+                    issues.append("Return a short summary, exactly one node_notes explanation per supplied core node, and only allowlisted optional node IDs using the required JSON schema.")
                 if not issues:
                     break
                 if attempt:
-                    logging.getLogger(__name__).warning("Planning response rejected after bounded correction: %s", "; ".join(dict.fromkeys(issues)))
+                    # Optional personalization must never make the fixed safety
+                    # plan unavailable. If the corrected core is valid, discard
+                    # only the invalid optional selections and keep the core.
+                    try:
+                        core = parse_core_narrative(reply.message, plan)
+                        core_issues = narrative_issues(core, context)
+                    except (ValueError, TypeError):
+                        core = None
+                        core_issues = ["The corrected core narrative is invalid."]
+                    if core is not None and not core_issues:
+                        logging.getLogger(__name__).warning(
+                            "Discarding invalid optional timeline selections after bounded correction: %s",
+                            "; ".join(dict.fromkeys(issues)))
+                        narrative = core
+                        break
+                    logging.getLogger(__name__).warning("Planning response rejected after bounded correction: %s", "; ".join(dict.fromkeys([*issues, *core_issues])))
                     raise HTTPException(502, "The AI plan included unsupported dates or an invalid timeline. No plan or calendar event was saved. Please try again or review your details with your adviser.")
                 reply = runtime.send(repair_planning_message(provider_message, issues), thread_id=reply.thread_id,
                     history=[grounding, {"role": "user", "content": provider_message}, {"role": "assistant", "content": reply.message}],
@@ -203,6 +225,8 @@ def chat(body: ChatRequest, session: AuthSession = Depends(require_profile_sessi
             notes = {note.id: note.explanation for note in narrative.node_notes}
             for node in plan["timeline"]["nodes"]:
                 node["explanation"] = notes[node["id"]]
+            from app.planning_timeline import compile_context_nodes
+            compile_context_nodes(plan, narrative.optional_nodes)
             answer_text = narrative.summary.strip()
         else:
             answer_text = envelope.message.strip()

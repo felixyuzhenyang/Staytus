@@ -1,5 +1,12 @@
 # Staytus change log
 
+## 2026-11-09 — Bounded adaptive planning timelines
+
+- Kept each supported workflow's server-owned safety sequence while adding scenario-specific candidate steps from deterministic record conflicts and missing-information checks. The candidates contain server-owned IDs, titles, placement, dependencies, evidence and no calendar action.
+- Extended the Orchestrate planning contract so the model may select zero to three allowlisted candidates and explain why they matter. The model still cannot remove or reorder core steps, invent dates or sources, change dependencies, or create an action. Selected nodes are inserted only after schema, allowlist and generated-text validation; invalid optional selections are discarded after one bounded correction when the core plan remains valid.
+- Added a visible `Added for your situation` marker and an expandable server-generated inclusion reason. Existing saved timelines remain compatible because the new node metadata is optional in the frontend types.
+- Added regression coverage for valid personalized selection, server-owned insertion/source/dependency behavior, private-candidate removal from responses/history and safe degradation when a model invents an optional node. No database migration, credential, provider scope or cloud-tool definition changed.
+
 ## 2026-11-08 — Opt-in matching email-content summaries
 
 - Added a separate, default-off consent for summarizing matching email content. OAuth read access, Orchestrate preview sharing, daily monitoring and body analysis remain independent. Staytus filters recent official-topic metadata before opening bounded inline text; attachments are excluded and provider responses have streaming byte limits.

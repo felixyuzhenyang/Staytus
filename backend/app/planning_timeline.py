@@ -1,7 +1,108 @@
-"""Server-owned planning milestones; models explain but never choose their dates."""
+"""Server-owned planning milestones with bounded model-selected context steps."""
+from copy import deepcopy
+
 from app.profile_details import details_for
 
-TIMELINE_VERSION = "planning-timeline-v1"
+TIMELINE_VERSION = "planning-timeline-v2"
+CONTEXT_NODE_VERSION = "planning-context-node-v1"
+
+
+CHECK_TITLES = {
+    "active_before_saved_ead_start": "Resolve the OPT stage and saved EAD start-date conflict",
+    "passport_expiry_before_return": "Review passport expiry before the planned return",
+    "visa_expiry_before_return": "Review visa expiry before the planned return",
+    "return_on_or_after_document_end": "Review re-entry after the saved program-document end",
+    "ead_end_before_return": "Review travel after the saved EAD end",
+    "travel_signature_needs_category_review": "Confirm the travel-signature requirement",
+    "travel_during_pending_opt": "Review travel while OPT is pending",
+    "dated_admission_review": "Review the saved I-94 admit-until date",
+}
+
+
+def _anchor(workflow, node_ids):
+    preferred = {
+        "travel": "documents",
+        "opt": "adviser",
+        "extension": "adviser",
+        "academic_training": "adviser",
+        "scholar": "adviser",
+    }.get(workflow, "adviser")
+    return preferred if preferred in node_ids else next(iter(node_ids))
+
+
+def build_context_candidates(request, guidance, timeline):
+    """Build a server-owned allowlist from this scenario's real checks/questions.
+
+    The model may choose candidate IDs and explain them. Titles, placement,
+    dependencies, sources, timing and calendar eligibility remain server-owned.
+    """
+    node_ids = {node["id"] for node in timeline["nodes"]}
+    anchor = _anchor(request.workflow, node_ids)
+    candidates = []
+
+    def add(key, title, basis, reason, *, kind="to_confirm", when="To confirm"):
+        candidate_id = f"context_{key}"
+        if candidate_id in node_ids or any(row["id"] == candidate_id for row in candidates):
+            return
+        candidates.append({"id": candidate_id, "title": title, "date": None,
+            "date_kind": kind, "time_label": when, "explanation": "", "basis": basis,
+            # Sources are attached only after selection. Avoid repeating the
+            # same source records in every private candidate and grounding turn.
+            "depends_on": [anchor], "sources": [], "calendar_target": None,
+            "rule_version": CONTEXT_NODE_VERSION, "node_role": "contextual",
+            "selection_reason": reason, "insert_after": anchor})
+
+    for check in guidance.get("record_checks", []):
+        key = str(check.get("id", "record_check"))[:52]
+        title = CHECK_TITLES.get(key, "Review the record issue identified for this plan")
+        message = str(check.get("message", "Review the saved details with the responsible adviser."))[:500]
+        fields = ", ".join(str(field) for field in check.get("fields", [])[:5])
+        basis = [message] + ([f"Saved fields involved: {fields}."] if fields else [])
+        add(key, title, basis,
+            "Current saved or temporary details produced a scenario-specific record check.",
+            kind="sequence", when="Before relying on this plan")
+
+    # Missing-information candidates give the model bounded flexibility without
+    # allowing it to invent a deadline or a new workflow. Cap the server list so
+    # prompt size and the user-facing plan remain manageable.
+    for item in guidance.get("missing_information", []):
+        if len(candidates) >= 6:
+            break
+        field = str(item.get("field", "missing_detail"))[:44]
+        question = str(item.get("question", "What information still needs confirmation?"))[:180]
+        add(f"confirm_{field}", f"Confirm: {question.rstrip('?')}", [question],
+            "This fact is missing from the current scenario and may change the appropriate next steps.")
+    return candidates
+
+
+def compile_context_nodes(plan, selections):
+    """Insert only validated model selections into the immutable core sequence."""
+    timeline = plan["timeline"]
+    candidates = {row["id"]: row for row in plan.get("timeline_candidates", [])}
+    selected = {row.id: row.explanation for row in selections}
+    contextual = []
+    for candidate in plan.get("timeline_candidates", []):
+        if candidate["id"] not in selected:
+            continue
+        node = deepcopy(candidate)
+        node.pop("insert_after", None)
+        node["explanation"] = selected[node["id"]]
+        node["sources"] = plan["sources"]
+        contextual.append(node)
+
+    by_anchor = {}
+    for node in contextual:
+        anchor = candidates[node["id"]]["insert_after"]
+        by_anchor.setdefault(anchor, []).append(node)
+    compiled = []
+    for node in timeline["nodes"]:
+        compiled.append(node)
+        compiled.extend(by_anchor.get(node["id"], []))
+    timeline["nodes"] = compiled
+    timeline["notice"] = ("Core process steps stay server-controlled. Personalized steps are selected from "
+        "backend-approved options supported by this scenario; sequence spacing is not to scale.")
+    plan.pop("timeline_candidates", None)
+    return plan
 
 
 def build_timeline(profile, request, guidance, targets):
@@ -13,7 +114,8 @@ def build_timeline(profile, request, guidance, targets):
         nodes.append({"id": key, "title": title, "date": day, "date_kind": kind,
             "time_label": when, "explanation": "", "basis": basis or [],
             "depends_on": depends or [], "sources": sources,
-            "calendar_target": target, "rule_version": target.get("rule_version") if target else TIMELINE_VERSION})
+            "calendar_target": target, "rule_version": target.get("rule_version") if target else TIMELINE_VERSION,
+            "node_role": "core"})
 
     def preparation(workflows, title):
         target = next((row for row in targets if row["workflow"] in workflows), None)
@@ -82,7 +184,7 @@ def build_timeline(profile, request, guidance, targets):
         if details.extension_requested_end and not complete:
             add("new_end", "Proposed new end date", day=details.extension_requested_end.isoformat(), kind="user_goal", depends=["request"],
                 basis=["This is the requested date, not an approved extension. Save the new document dates only after confirmation."])
-    else:
+    elif request.workflow == "academic_training":
         add("adviser", "Confirm Academic Training with your sponsor", kind="sequence", when="Now",
             basis=["J-1 student Academic Training uses sponsor authorization, separately from F-1 OPT."])
         preparation({"academic_training_review"}, "Prepare your sponsor review and next steps")

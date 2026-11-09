@@ -18,6 +18,7 @@ def timeline_runtime(env, monkeypatch):
             self.calls = []
             self.envelope = {"kind": "plan", "workflow": "opt", "facts": []}
             self.invalid_narrative = False
+            self.optional_nodes = []
 
         def send(self, message, **kwargs):
             self.calls.append({"message": message, **kwargs})
@@ -27,7 +28,8 @@ def timeline_runtime(env, monkeypatch):
                 context = json.loads(kwargs["history"][0]["content"].split("\n")[-1])
                 output = {"summary": "Plan your internship with your DSO. Your intended start is a goal; confirm the application dates and current requirements.",
                     "node_notes": [{"id": node["id"], "explanation": "Check the supplied dates and official references before taking this step."}
-                        for node in context["guided_plan"]["timeline"]["nodes"]]}
+                        for node in context["guided_plan"]["timeline"]["nodes"]],
+                    "optional_nodes": self.optional_nodes}
                 if self.invalid_narrative:
                     output["node_notes"][0]["id"] = "model_invented_node"
             return SimpleNamespace(message=json.dumps(output), thread_id="synthetic-private-thread")
@@ -38,7 +40,7 @@ def timeline_runtime(env, monkeypatch):
 
 
 def test_direct_goal_has_timeline_and_separate_goal_and_request_dates(env, student, timeline_runtime):
-    client, factory = env
+    client, _ = env
     message = "I am considering pre-completion OPT. I want to start an internship on May 20, 2027. Please help me plan."
     timeline_runtime.envelope["facts"] = [
         {"field": "goal_date", "value": "2027-05-20", "quote": "May 20, 2027"},
@@ -76,6 +78,43 @@ def test_form_and_chat_share_timeline_and_missing_travel_dates_remain_unknown(en
     nodes = {node["id"]: node for node in response.json()["planning"]["timeline"]["nodes"]}
     assert nodes["return"]["date"] is None
     assert nodes["return"]["date_kind"] == "to_confirm"
+
+
+def test_model_can_select_only_server_approved_context_nodes(env, student, timeline_runtime):
+    client, _ = env
+    profile = client.get("/api/v1/profile", headers=student).json()
+    timeline_runtime.optional_nodes = [{"id": "context_visa_expiry_before_return",
+        "explanation": "Because the saved visa expires before the planned return, review renewal needs and exceptions with the adviser."}]
+    response = client.post("/api/v1/chat", headers=student, json={"message": "Plan my trip", "planning_request": {
+        "workflow": "travel", "profile_version": profile["version"], "travel_date": "2027-01-10",
+        "planning_details": {"travel_destination": "Japan", "return_date": "2027-01-22",
+            "passport_expiry": "2029-01-01", "visa_expiry": "2026-12-31"}}})
+    assert response.status_code == 200, response.text
+    plan = response.json()["planning"]
+    assert "context_visa_expiry_before_return" in timeline_runtime.calls[0]["message"]
+    ids = [node["id"] for node in plan["timeline"]["nodes"]]
+    assert ids.index("context_visa_expiry_before_return") == ids.index("documents") + 1
+    selected = next(node for node in plan["timeline"]["nodes"] if node["id"] == "context_visa_expiry_before_return")
+    assert selected["node_role"] == "contextual"
+    assert selected["calendar_target"] is None and selected["sources"] == plan["sources"]
+    assert selected["depends_on"] == ["documents"] and selected["selection_reason"]
+    assert "timeline_candidates" not in plan
+    assert client.get("/api/v1/chat/history", headers=student).json()["messages"][-1]["planning"] == plan
+
+
+def test_invalid_optional_selection_is_discarded_without_losing_safe_core(env, student, timeline_runtime):
+    client, _ = env
+    profile = client.get("/api/v1/profile", headers=student).json()
+    timeline_runtime.optional_nodes = [{"id": "model_invented_node",
+        "explanation": "Use a model-created deadline and dependency."}]
+    response = client.post("/api/v1/chat", headers=student, json={"message": "Plan my OPT", "planning_request": {
+        "workflow": "opt", "profile_version": profile["version"], "planning_details": {"opt_stage": "considering"}}})
+    assert response.status_code == 200, response.text
+    plan = response.json()["planning"]
+    assert len(timeline_runtime.calls) == 2
+    assert "model_invented_node" not in {node["id"] for node in plan["timeline"]["nodes"]}
+    assert all(node["node_role"] == "core" for node in plan["timeline"]["nodes"])
+    assert "timeline_candidates" not in plan
 
 
 def test_combined_grounding_above_old_64000_limit_reaches_timeline_runtime(
@@ -184,6 +223,19 @@ def test_equivalent_id_keyed_model_notes_preserve_text_and_require_all_nodes():
     data["node_notes"].pop("filing")
     with pytest.raises(ValueError):
         parse_narrative(json.dumps(data), plan)
+
+
+def test_optional_node_cannot_define_server_owned_fields():
+    from app.planning_protocol import parse_narrative
+    plan = {"timeline": {"nodes": [{"id": "adviser"}]},
+        "timeline_candidates": [{"id": "context_confirm_history"}]}
+    base = {"summary": "Confirm the missing facts.",
+        "node_notes": [{"id": "adviser", "explanation": "Discuss the plan with your adviser."}]}
+    for extra in ({"date": "2027-01-01"}, {"depends_on": ["model_node"]}, {"title": "Model title"}):
+        data = {**base, "optional_nodes": [{"id": "context_confirm_history",
+            "explanation": "Confirm the relevant record before relying on this plan.", **extra}]}
+        with pytest.raises(ValueError):
+            parse_narrative(json.dumps(data), plan)
 
 
 def test_internal_offset_cannot_be_reused_as_a_filing_rule(env, student, timeline_runtime):

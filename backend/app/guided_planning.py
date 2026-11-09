@@ -1,7 +1,7 @@
 """Validated, temporary planning scenarios for the single authenticated chat path."""
 import json
 import re
-from datetime import date
+from datetime import date, timedelta
 from types import SimpleNamespace
 from typing import Literal
 
@@ -83,7 +83,7 @@ def prepare_scenario(db, profile, request: PlanningRequest, *, allow_incomplete=
     if (request.workflow == "opt" and request.goal_date and scenario.school == "University of Pennsylvania"
             and details.get("opt_stage", "unknown") in {"unknown", "considering", "preparing"}
             and not any(target["workflow"] == "opt_preparation" for target in targets)):
-        from datetime import timedelta
+
         from app.source_registry import load_school
         buffer = load_school("penn")["planning_defaults"]["opt_prepare_days"]
         original = (request.goal_date - timedelta(days=buffer)).isoformat()
@@ -105,8 +105,9 @@ def prepare_scenario(db, profile, request: PlanningRequest, *, allow_incomplete=
         "uses_temporary_details": True, "calendar_targets": targets,
         "record_checks": main.get("record_checks", []),
         "missing_information": main["missing_information"], "sources": main["sources"]}
-    from app.planning_timeline import build_timeline
+    from app.planning_timeline import build_context_candidates, build_timeline
     plan["timeline"] = build_timeline(scenario, request, main, targets)
+    plan["timeline_candidates"] = build_context_candidates(request, main, plan["timeline"])
     return scenario, {**guidance, "workflows": selected}, plan, query
 
 
@@ -117,12 +118,16 @@ PLAN_INSTRUCTIONS = (
     "the explicitly supplied scenario is authoritative for this hypothetical plan. Do not save or change the profile. "
     "Do not prepare actions or create calendar events with tools: the user will use the plan's calendar preview buttons. "
     "Write the plan in the language of the user's request/notes, defaulting to English. "
-    'Return ONLY JSON shaped as {"summary":"...","node_notes":[{"id":"supplied node id","explanation":"..."}]}. '
-    "summary is a brief paragraph of at most 90 words; node_notes contains one object per supplied timeline node, "
+    'Return ONLY JSON shaped as {"summary":"...","node_notes":[{"id":"supplied core node id","explanation":"..."}],'
+    '"optional_nodes":[{"id":"supplied candidate id","explanation":"..."}]}. '
+    "summary is a brief paragraph of at most 90 words; node_notes contains one object per supplied core timeline node, "
     "with id and explanation, at most 35 words per explanation). Do not output Markdown tables, diagrams or HTML. "
     "Explain the user's goal and stage briefly; explain each node using the supplied facts and relevant evidence. "
     "Considering a route is not a confirmed requirement or eligibility finding; preserve that uncertainty in your summary. "
-    "Every supplied node needs exactly one explanation. Never add, remove, redetermine or reschedule nodes. "
+    "Every supplied core node needs exactly one explanation. Never remove, redetermine or reschedule a core node. "
+    "You may independently select zero to three optional_nodes, but only by exact ID from optional_timeline_candidates. "
+    "Select only candidates that materially improve this user's plan and do not duplicate a core step. "
+    "Do not invent an optional ID, title, date, source, dependency or calendar action; the server owns those fields. "
     "The interface already displays every date, timing label and calculation. Keep your summary and node explanations focused on actions, "
     "personal context and missing facts; do not repeat calendar dates or numerical durations in this narrative. "
     "Never reuse a preparation buffer as a filing/recommendation rule. A to_confirm node must explain what to confirm, never supply a date or interval. "
@@ -159,6 +164,9 @@ def planning_message(message: str, context: dict) -> str:
         "questions_to_confirm": [row["question"] for row in plan["missing_information"][:5]],
         "timeline_nodes": [{key: node[key] for key in ("id", "title", "date", "date_kind", "time_label", "depends_on")}
             for node in plan["timeline"]["nodes"]],
+        "optional_timeline_candidates": [{key: node[key] for key in
+            ("id", "title", "selection_reason")}
+            for node in plan.get("timeline_candidates", [])],
         "official_source_evidence": evidence}
     data["scenario_profile"]["planning_details"] = {key: value for key, value in (profile.get("planning_details") or {}).items()
         if value not in (None, "", "unknown", [])}
@@ -171,12 +179,15 @@ def planning_message(message: str, context: dict) -> str:
         "Pending review is Staytus's internal snapshot-review state: the official webpage is not a draft or unofficial publication. "
         "Explain uncertainty in ordinary words; do not expose internal field names or tool identifiers. "
         "Ask the user to contact their adviser instead of asking them to run an internal tool.\nREQUEST DATA:\n")
+    all_candidates = data["optional_timeline_candidates"]
     for excerpt_limit in (600, 250, 100, 0):
-        for row in evidence:
-            row["excerpt"] = row["excerpt"][:excerpt_limit]
-        prompt = instructions + json.dumps(data, ensure_ascii=False, separators=(",", ":"))
-        if len(prompt) <= 6900:
-            return prompt
+        for candidate_limit in (6, 4, 2, 0):
+            data["optional_timeline_candidates"] = all_candidates[:candidate_limit]
+            for row in evidence:
+                row["excerpt"] = row["excerpt"][:excerpt_limit]
+            prompt = instructions + json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+            if len(prompt) <= 6900:
+                return prompt
     # Full grounding remains in authenticated system context. Keep the current
     # turn compact enough for the provider even with long optional form notes.
     data["form_notes"] = data["form_notes"][:250]
@@ -233,5 +244,6 @@ def plan_text_issues(text: str, context: dict) -> list[str]:
 def repair_planning_message(original: str, issues: list[str]) -> str:
     return ("Rewrite your previous plan before it is shown to the user. Correct ALL of these unsupported claims: "
         + " ".join(dict.fromkeys(issues))[:450] + " Do not quote or repeat the unsupported claims. Return the complete corrected plan in the requested language. "
-        "Return ONLY the requested JSON object with summary and node_notes, one explanation per supplied node. "
+        "Return ONLY the requested JSON object with summary, node_notes and optional_nodes. Include one explanation per supplied core node. "
+        "Select zero to three optional nodes only by exact ID from the supplied candidate list; use an empty list if none is clearly useful. "
         "Use only the original data below.\n" + original)

@@ -60,7 +60,7 @@ export type GuidedPlan = { workflow: PlanningWorkflow; title: string; profile_ve
   timeline?: { version: string; layout: string; notice: string; nodes: {
     id: string; title: string; date: string | null; date_kind: "preparation_target" | "saved_date" | "user_goal" | "to_confirm" | "sequence";
     time_label: string; explanation: string; basis: string[]; depends_on: string[]; sources: WorkflowSource[];
-    calendar_target: Deadline | null; rule_version: string;
+    calendar_target: Deadline | null; rule_version: string; node_role?: "core" | "contextual"; selection_reason?: string;
   }[] } };
 export type ChatResponse = Omit<ChatMessage, "role"> & { mode: string; conversation_id?: string; thread_id?: string };
 export type ChatHistory = { conversation_id?: string | null; messages: ChatMessage[]; hide_assistant_updates: boolean };

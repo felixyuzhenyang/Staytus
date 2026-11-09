@@ -2,6 +2,12 @@
 
 The original two plans and Unified Project Plan remain preserved. This file records implementation choices where those plans were contradictory or needed a local development path.
 
+## November 9 adaptive Timeline boundary
+
+Planning timelines now use a hybrid compiler rather than either a completely fixed answer or a model-authored workflow. `planning_timeline.py` retains the fixed, testable safety sequence for each supported workflow. The backend derives a bounded private candidate list only from the current scenario's deterministic record checks and missing-information questions. Orchestrate may select zero to three candidate IDs and explain them, but it cannot supply their title, date, source, dependency, position or calendar target. The backend validates the exact allowlist and generated text, then attaches current workflow sources and inserts selected nodes at server-owned anchors. Candidates are removed before persistence and response.
+
+This design gives the model meaningful prioritization autonomy without treating model prose as a deadline or business rule. A failed optional enhancement cannot remove the fixed safety plan: after one repair, a valid core response is retained and invalid optional selections are discarded. This iteration does not add arbitrary new workflow types or multi-workflow composition; those require their own evidence, node catalog and compatibility tests.
+
 ## November 8 Orchestrate history-item guard
 
 The previous 64,000-character limit on one Orchestrate history message was an application-side validation guard, not a discovered IBM model or API limit. It rejected a lossless server-supplied grounding message of roughly 69,000 characters before any network request. The per-item guard is now 100,000 characters after synthetic, non-personal 69,367-, 99,000- and exact 100,000-character requests were accepted by the configured IBM Orchestrate agent. The separate 256,000-character aggregate history guard remains unchanged. This revision does not truncate, summarize or compact policy excerpts, profile context, planning data or assistant updates; compaction remains a separate future design if real requests exceed the new bound or the provider's token budget.

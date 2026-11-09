@@ -519,6 +519,7 @@ pre { white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.7
 .timeline-date { display:flex;align-items:center;gap:9px;flex-wrap:wrap;line-height:1.6; }
 .timeline-date>strong { font-size:14px;color:var(--primary); }
 .timeline-date>span { font-size:11px;padding:2px 7px;border-radius:5px;background:var(--neutral-soft);color:var(--muted); }
+.timeline-date>.timeline-personalized { background:var(--primary-soft);color:var(--primary); }
 .timeline-node.preparation_target .timeline-date>span { background:var(--warning-soft);color:var(--warning); }
 .timeline-node-content h5 { font-size:14px;line-height:1.6;margin:6px 0; }
 .timeline-node-content>p { font-size:14px;line-height:1.8;color:var(--muted);margin:5px 0 9px; }
