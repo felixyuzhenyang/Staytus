@@ -91,10 +91,21 @@ def test_capture_chunk_index_dedup_and_pending_citations(capture_db):
     assert rows[0]["reviewed"] is False
     assert rows[0]["citations"][0]["captured_at"]
     assert rows[0]["source_url"] == source.url
+    assert rows[0]["source_authority"] == "university"
     assert rows[0]["retrieval_mode"] == "keyword"
     state = capture_db.get(SourceCapture, source.id)
     assert state.last_success_at and state.robots_status == "allowed"
     assert len(list(capture_db.scalars(select(FetchAttempt)))) == 2
+
+
+def test_retrieval_exposes_registry_authority_for_policy_library_groups(capture_db):
+    university = capture_db.get(PolicySource, "penn-opt")
+    government = capture_db.get(PolicySource, "uscis-opt")
+    store_candidate(capture_db, university, "Shared OPT grouping phrase from Penn")
+    store_candidate(capture_db, government, "Shared OPT grouping phrase from USCIS")
+    rows = search_snapshots(capture_db, "grouping phrase", "F-1", include_pending=True)
+    assert {(row["source_id"], row["source_authority"]) for row in rows} == {
+        ("penn-opt", "university"), ("uscis-opt", "government")}
 
 
 def test_conditional_304_keeps_snapshot_and_can_upgrade_index(capture_db):

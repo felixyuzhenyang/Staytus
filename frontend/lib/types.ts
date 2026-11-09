@@ -36,9 +36,10 @@ export type Citation = { title?: string; url?: string; source_url?: string; stat
 export type Policy = Citation & {
   id: string; title: string; text: string; status: string; reviewed: boolean;
   source_url: string; version?: string | number; fixture?: boolean; fictional?: boolean;
+  source_authority?: "university" | "government" | string;
   freshness?: string; created_at?: string; captured_at?: string;
 };
-export type SourceStatus = { id: string; title: string; source_url: string; freshness: string; last_attempt_at?: string | null; last_success_at?: string | null; last_error?: string | null; review_status: string; reviewed: boolean; captured_at?: string | null };
+export type SourceStatus = { id: string; title: string; source_url: string; authority?: string; freshness: string; last_attempt_at?: string | null; last_success_at?: string | null; last_error?: string | null; review_status: string; reviewed: boolean; captured_at?: string | null };
 export type Approval = {
   id: string; kind: string; status: string; payload: Record<string, unknown>; payload_hash: string;
   expires_at: string; created_at?: string; receipt?: Record<string, unknown> | null; target_account?: string | null;

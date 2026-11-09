@@ -364,6 +364,12 @@ svg { flex-shrink:0; }
 .searchbar input { flex:1;min-width:0;border:0;outline:none;background:transparent;font-size:12px;padding:7px 0; }
 .info-strip { display:flex;gap:10px;align-items:center;padding:14px 17px;border-radius:11px;background:var(--primary-soft);color:var(--muted);margin-bottom:20px; }
 .info-strip p { font-size:10px;line-height:1.8; }
+.policy-sections { display:grid;gap:32px; }
+.policy-section { min-width:0; }
+.policy-section-heading { display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;margin-bottom:15px; }
+.policy-section-icon { width:36px;height:36px;display:grid;place-items:center;border-radius:10px;background:var(--primary-soft);color:var(--primary); }
+.policy-section-heading h2 { font-size:15px;letter-spacing:-.25px; }
+.policy-section-heading p { color:var(--muted);font-size:10px;line-height:1.7;margin-top:3px; }
 .policy-grid { display:grid;grid-template-columns:1fr 1fr;gap:18px; }
 .policy-card { padding:24px;display:flex;flex-direction:column; }
 .policy-card h2 { font-size:16px;letter-spacing:-.3px;margin-bottom:12px; }
@@ -549,8 +555,18 @@ pre { white-space:pre-wrap;overflow-wrap:anywhere;font-size:10px;line-height:1.7
 .mail-message h3 { margin:9px 0 4px;font-size:13px; }
 .mail-message small,.mail-message p { color:var(--muted);font-size:11px;line-height:1.8;overflow-wrap:anywhere; }
 .mail-message p { margin-top:12px; }
-.source-status { margin-top:23px;padding:25px; }
+.source-status { margin-top:28px;padding:0;overflow:hidden; }
+.source-status>summary { list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px 25px; }
+.source-status>summary::-webkit-details-marker { display:none; }
+.source-status-summary h2 { font-size:14px;letter-spacing:-.2px; }
+.source-status-summary p { color:var(--muted);font-size:9px;line-height:1.7;margin-top:4px; }
+.source-status-overview { display:flex;align-items:center;justify-content:flex-end;gap:10px;color:var(--muted);font-size:9px;white-space:nowrap; }
+.source-status-overview svg { transition:transform .18s ease; }
+.source-status[open]>.source-status-summary { border-bottom:1px solid var(--line-soft); }
+.source-status[open]>.source-status-summary .source-status-overview svg { transform:rotate(180deg); }
+.source-status-body { padding:0 25px 8px; }
 .source-status-row { display:flex;align-items:center;justify-content:space-between;gap:17px;border-top:1px solid var(--line-soft);padding:17px 0; }
+.source-status-row:first-child { border-top:0; }
 .source-status-row a { display:inline-flex;gap:6px;align-items:center;color:var(--primary);font-size:11px; }
 .source-status-row p { color:var(--muted);font-size:9px;margin-top:6px;line-height:1.7; }
 .source-status-row .source-error { color:var(--red-ink); }
@@ -566,3 +582,12 @@ input::placeholder,textarea::placeholder { color:var(--muted);opacity:1; }
 @media (max-width:700px) { .onboarding { padding:25px 22px 50px; } .onboarding-header { margin-bottom:42px; } .onboarding-copy h1 { font-size:30px; } .onboarding-form { padding:22px; } .sidebar-profile { flex-wrap:wrap;gap:8px; } .sidebar-profile>.icon-button { display:flex;width:29px; } .info-strip { flex-wrap:wrap; } .info-strip>.button { margin-left:28px; } .connection-settings,.mailbox-panel { padding:20px; } .provider-row { flex-wrap:wrap;gap:12px; } .provider-row>div:not(.provider-actions) { min-width:120px; } .provider-row>.badge { margin-left:44px; } .provider-actions { margin-left:auto; } }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important;transition:none!important;scroll-behavior:auto!important; } }
 @media (max-width:700px) { .page-heading { flex-wrap:wrap;gap:12px; } .page-heading>.refresh-data { width:auto;font-size:10px;gap:6px;overflow:visible; } }
+@media (max-width:700px) {
+  .policy-section-heading { grid-template-columns:auto 1fr;align-items:start; }
+  .policy-section-heading>.badge { grid-column:2;justify-self:start; }
+  .source-status>summary { align-items:flex-start;flex-direction:column;padding:18px 20px; }
+  .source-status-overview { width:100%;justify-content:flex-start;white-space:normal;flex-wrap:wrap; }
+  .source-status-body { padding-inline:20px; }
+  .source-status-row { align-items:flex-start;flex-direction:column; }
+  .source-badges { justify-content:flex-start; }
+}

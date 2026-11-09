@@ -1,5 +1,12 @@
 # Staytus change log
 
+## 2026-11-08 — Organize the Policy Library by source authority
+
+- Grouped captured policy cards using the registered source authority rather than title or URL guessing. Penn and school guidance is separated from U.S. government guidance; unrecognized registered authorities have an explicit fallback group, and empty groups are omitted from filtered searches.
+- Changed Official source checks into a collapsed disclosure with registered, captured and latest-error counts in its summary. Expanding it preserves the original links, capture/check dates, freshness and review-state details. Added narrow-screen layouts for group headings and expanded source rows.
+- Added the source-authority field to policy retrieval and regression coverage for university/government classification. No source content, capture schedule, review status or legal/planning rule changed. Validation: 597 backend tests passed with 3 opt-in PostgreSQL skips; frontend type checking, 13-tool OpenAPI validation, production build and whitespace checks passed.
+- Published the allowlisted source to the existing Vercel production project with unchanged configuration and credentials. A disposable synthetic account verified both authority sections, the default-collapsed disclosure, all 23 expanded source-status rows and a 390px viewport with no horizontal overflow; the browser was closed and the exact synthetic account and owned records were removed.
+
 ## 2026-11-08 — Personalize workspace navigation labels
 
 - Replaced the shell navigation label Your workspace with My workspace in the desktop sidebar, top breadcrumb and non-Overview page eyebrow. Loading, onboarding and status sentences that use “your workspace” grammatically remain unchanged. No route, state, authorization or backend behavior changed.
