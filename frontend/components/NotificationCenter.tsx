@@ -151,7 +151,7 @@ export default function NotificationCenter({ accountId, onSessionExpired, onOpen
     <style jsx>{`
       .reminder-center { position: relative; }
       .reminder-bell { position: relative; }
-      .reminder-count { position: absolute; top: -5px; right: -6px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 20px; background: #9d6b70; color: white; font-size: 10px; line-height: 17px; }
+      .reminder-count { position: absolute; top: -5px; right: -6px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 20px; background: #9d6b70; color: white; font-size: 12px; line-height: 17px; }
       .reminder-popover { position: absolute; top: 44px; right: 0; z-index: 45; width: min(390px, calc(100vw - 28px)); padding: 20px; box-shadow: 0 15px 48px #26384b20; }
       .reminder-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 12px; }
       .reminder-heading > div { display: flex; gap: 4px; }
@@ -159,22 +159,22 @@ export default function NotificationCenter({ accountId, onSessionExpired, onOpen
       .reminder-items { max-height: 55vh; overflow: auto; }
       .reminder-item { display: grid; gap: 7px; padding: 16px 0; border-top: 1px solid #dce2e6; }
       .reminder-item.read { opacity: .65; }
-      .reminder-item small, .reminder-toast small { color: #687d8b; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
-      .reminder-item p, .reminder-toast p, .reminder-popover > p { font-size: 13px; line-height: 1.55; margin: 0; }
-      .reminder-text-button { display: inline-flex; align-items: center; justify-self: start; gap: 5px; padding: 3px 0; background: none; border: 0; color: #4c687f; font-size: 12px; cursor: pointer; text-align: left; }
+      .reminder-item small, .reminder-toast small { color: #687d8b; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
+      .reminder-item p, .reminder-toast p, .reminder-popover > p { font-size: 14px; line-height: 1.55; margin: 0; }
+      .reminder-text-button { display: inline-flex; align-items: center; justify-self: start; gap: 5px; padding: 3px 0; background: none; border: 0; color: #4c687f; font-size: 14px; cursor: pointer; text-align: left; }
       .reminder-toast { position: fixed; right: 28px; bottom: 28px; z-index: 60; width: min(390px, calc(100vw - 32px)); padding: 25px; display: grid; gap: 10px; box-shadow: 0 15px 48px #26384b20; }
       .reminder-close { position: absolute; top: 8px; right: 8px; }
       .reminder-toast strong { padding-right: 12px; }
       .reminder-overlay { position: fixed; inset: 0; background: #26384b45; z-index: 80; display: grid; place-items: center; padding: 20px; }
       .reminder-settings { width: min(580px, 100%); padding: 28px; max-height: 90vh; overflow: auto; }
       .reminder-settings form { display: grid; gap: 17px; }
-      .reminder-settings label { display: grid; gap: 6px; font-size: 13px; }
+      .reminder-settings label { display: grid; gap: 6px; font-size: 14px; }
       .reminder-settings .reminder-checkbox { display: flex; align-items: center; gap: 9px; }
       .reminder-checkbox input { width: 16px; height: 16px; }
       .reminder-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px; }
       .reminder-settings input:not([type=checkbox]), .reminder-settings select { width: 100%; padding: 9px 10px; border: 1px solid #d6dfe4; border-radius: 8px; background: #fff; color: inherit; }
-      .reminder-help, .reminder-settings small { color: #73818b; font-size: 12px; line-height: 1.6; }
-      .reminder-error { color: #9d535c; font-size: 13px; }
+      .reminder-help, .reminder-settings small { color: #73818b; font-size: 14px; line-height: 1.6; }
+      .reminder-error { color: #9d535c; font-size: 14px; }
       .reminder-sr-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
       @media (max-width: 500px) { .reminder-fields { grid-template-columns: 1fr; } .reminder-toast { right: 16px; bottom: 16px; } }
     `}</style>

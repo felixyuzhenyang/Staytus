@@ -1,5 +1,11 @@
 # Staytus change log
 
+## 2026-11-08 — Improve application-wide text readability
+
+- Increased the small-text scale across navigation, body copy, forms, buttons, badges, dates, source metadata, chat, planning timelines, connection settings, notifications and responsive overrides. Existing large page and feature headings keep their prior sizes; hidden mobile labels remain hidden.
+- Replaced the previous 7–13px supporting scale with a 9–14px scale, preserving weight, color and spacing hierarchy rather than scaling the entire interface. Updated the Notification Center's component-scoped styles to match the shared typography.
+- Validation: 597 backend tests passed with 3 opt-in PostgreSQL skips; frontend type checking, 13-tool OpenAPI validation, production build and whitespace checks passed. Published the allowlisted source to the existing Vercel project with unchanged configuration and credentials. A disposable synthetic account verified the sign-in screen and every standard workspace page at 1280px, plus Assistant/Profile/Updates at 390px; no page-level horizontal overflow was found. The enlarged sidebar remains vertically scrollable at 720px and its account controls remain reachable. The browser was closed and the exact synthetic account and owned records were removed.
+
 ## 2026-11-08 — Explain sidebar destinations
 
 - Added a concise functional description to every main and account navigation destination. The Overview, Action inbox and Policy library wording follows the team feedback; Policy updates explicitly distinguishes captured changes and their review state from the source-browsing library. My Assistant, My Profile, Connections, Activity log and the reviewer-only workspace have matching explanations. Removed redundant category labels and enlarged the descriptions after visual review so each entry remains compact and readable.
