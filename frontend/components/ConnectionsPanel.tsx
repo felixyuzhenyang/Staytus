@@ -1,34 +1,123 @@
 "use client";
-import { CalendarDays, Globe2, Link2, Mail, Sparkles } from "lucide-react";
+import { CalendarDays, Mail } from "lucide-react";
 import type { Connection, MailAnalysis, MailMessage, OAuthCapability } from "@/lib/types";
 import { date } from "@/lib/types";
-import { Badge, Empty } from "./ui";
+import { canWriteCalendar } from "@/lib/calendar";
+import { Badge } from "./ui";
 import EmailProviderCard from "./EmailProviderCard";
-import MailboxMonitorCard from "./MailboxMonitorCard";
 import ICloudCalendarCard from "./ICloudCalendarCard";
 
-function integrationStatus(value: unknown): { ready: boolean; text: string } {
-  if (value && typeof value === "object") {
-    const item = value as Record<string, unknown>;
-    if (item.configured === true && item.secure_context_verified === true) return { ready: true, text: "Chat enabled" };
-    const ready = item.available === true || item.verified === true || item.live_verified === true || item.status === "connected" || item.status === "ready";
-    return { ready, text: ready ? "Available" : item.configured === true ? "Configured" : "Not connected" };
-  }
-  return { ready: false, text: "Not connected" };
-}
+const providers = ["google", "microsoft"] as const;
+type Provider = (typeof providers)[number];
+type Props = {
+  connections: Connection[];
+  messages: MailMessage[];
+  analyses: MailAnalysis[];
+  mailboxLoaded: boolean;
+  busy: boolean;
+  onConnect: (provider: Provider, capability: OAuthCapability) => Promise<void>;
+  onDisconnect: (provider: Provider) => Promise<void>;
+  onReadMail: (provider: Provider) => Promise<void>;
+  onAgentAccess: (provider: Provider, enabled: boolean) => Promise<void>;
+  onContentAnalysis: (provider: Provider, enabled: boolean) => Promise<void>;
+  onAnalyzeMail: (provider: Provider) => Promise<void>;
+  onUpdated: () => void;
+  onSessionExpired?: () => void;
+};
 
-export default function ConnectionsPanel({ connections, integrations, messages, analyses, mailboxLoaded, busy, onConnect, onDisconnect, onReadMail, onAgentAccess, onContentAnalysis, onAnalyzeMail, onUpdated, onSessionExpired }: { connections: Connection[]; integrations: Record<string, unknown>; messages: MailMessage[]; analyses: MailAnalysis[]; mailboxLoaded: boolean; busy: boolean; onConnect: (provider: "google" | "microsoft", capability?: OAuthCapability) => Promise<void>; onDisconnect: (provider: "google" | "microsoft") => Promise<void>; onReadMail: (provider: "google" | "microsoft") => Promise<void>; onAgentAccess: (provider: "google" | "microsoft", enabled: boolean) => Promise<void>; onContentAnalysis: (provider: "google" | "microsoft", enabled: boolean) => Promise<void>; onAnalyzeMail: (provider: "google" | "microsoft") => Promise<void>; onUpdated: () => void; onSessionExpired?: () => void }) {
-  const orchestrate = integrationStatus(integrations.orchestrate);
-  const watson = integrationStatus(integrations.watsonx || integrations.watsonx_ai);
+export default function ConnectionsPanel({
+  connections, messages, analyses, mailboxLoaded, busy, onConnect, onDisconnect,
+  onReadMail, onAgentAccess, onContentAnalysis, onAnalyzeMail, onUpdated, onSessionExpired,
+}: Props) {
   return <>
-    <div className="connection-grid"><section className="panel connection-card"><span className="tile-icon"><Sparkles size={24} /></span><h2>IBM watsonx Orchestrate</h2><p>Powers your assistant's conversation and routes tools through the server. Chat is available only when the real service is connected.</p><Badge tone={orchestrate.ready ? "green" : "amber"}>{orchestrate.text}</Badge></section><section className="panel connection-card"><span className="tile-icon"><Globe2 size={24} /></span><h2>watsonx.ai</h2><p>Supports model services for source analysis and retrieval when configured. Connection keys stay on the server.</p><Badge tone={watson.ready ? "green" : "amber"}>{watson.text}</Badge></section><section className="panel connection-card"><span className="tile-icon"><CalendarDays size={24} /></span><h2>Calendar reminders</h2><p>Connect Google, Outlook or iCloud Calendar below, then preview and approve each reminder. Provider events appear in Apple Calendar when that account is enabled on your device. Calendar file export is also available.</p><Badge tone="blue">Separate calendar connection</Badge></section></div>
-    <section className="panel connection-settings"><div className="section-heading inside"><h2><Mail size={18} /> Your email and calendar connections</h2><Badge>Optional</Badge></div><p className="muted">Connect only the account you want Staytus to access. The provider will show the requested permissions before you approve them.</p>
-      <div className="provider-list">{(["google", "microsoft"] as const).map(provider => <EmailProviderCard key={provider} provider={provider} connection={connections.find(item => item.provider === provider)} busy={busy} onConnect={onConnect} onDisconnect={onDisconnect} onReadMail={onReadMail} onAgentAccess={onAgentAccess} onContentAnalysis={onContentAnalysis} onAnalyzeMail={onAnalyzeMail} />)}</div><div className="note"><Link2 size={18} /><p>Connecting email does not grant access to Penn's authenticated ISSS portal. School portal actions remain unavailable until a supported connection exists.</p></div>
+    <section className="panel connection-settings" aria-labelledby="connection-email-heading">
+      <div className="section-heading inside"><h2 id="connection-email-heading"><Mail size={18} /> Email</h2></div>
+      <p className="muted">Connect an inbox to check for relevant notices. Assistant access and daily checks are optional.</p>
+      <div className="provider-list">
+        {providers.map(provider => <EmailProviderCard
+          key={provider}
+          provider={provider}
+          connection={connections.find(item => item.provider === provider)}
+          busy={busy}
+          onConnect={onConnect}
+          onDisconnect={onDisconnect}
+          onReadMail={onReadMail}
+          onAgentAccess={onAgentAccess}
+          onContentAnalysis={onContentAnalysis}
+          onAnalyzeMail={onAnalyzeMail}
+          onSessionExpired={onSessionExpired}
+        />)}
+      </div>
+      {(mailboxLoaded || analyses.length > 0) && <details className="connection-disclosure email-activity">
+        <summary>Recent email activity</summary>
+        <div className="connection-details">
+          {mailboxLoaded && <div>
+            <h3>Recent messages</h3>
+            {messages.length === 0 && <p role="status" className="muted">No matching messages were found.</p>}
+            {messages.map(message => <article className="mail-message" key={message.id}>
+              <span className="eyebrow">{date(message.received_at)}</span>
+              <h4>{message.subject || "(No subject)"}</h4>
+              <small>{message.from}</small>
+              <p>{message.snippet}</p>
+            </article>)}
+          </div>}
+          {analyses.length > 0 && <div>
+            <h3>Private email summaries</h3>
+            <p className="muted">Confirm dates and required actions in the original email and official sources.</p>
+            {analyses.map(item => <article className="mail-message mail-analysis" key={item.id}>
+              <span className="eyebrow">{date(item.received_at)} · {item.provider === "google" ? "Gmail" : "Outlook"}</span>
+              <h4>{item.subject || "(No subject)"}</h4>
+              <small>{item.from}</small>
+              <p><strong>Summary:</strong> {item.analysis.summary}</p>
+              <p><strong>Why it may matter:</strong> {item.analysis.why_relevant}</p>
+              {item.analysis.action_items.length > 0 && <>
+                <h5>Possible next steps</h5>
+                <ul>{item.analysis.action_items.map((action, index) => <li key={index}>
+                  {action.text}{action.due_date ? ` · ${date(action.due_date)}` : ""}
+                  {action.needs_confirmation ? " · Confirm in the original email" : ""}
+                </li>)}</ul>
+              </>}
+              {item.analysis.dates.length > 0 && <details><summary>Dates mentioned</summary>
+                <ul>{item.analysis.dates.map((mentioned, index) => <li key={index}>
+                  <strong>{mentioned.date_text}</strong> — {mentioned.meaning}
+                  <small className="mail-quote">Source wording: “{mentioned.exact_quote}”</small>
+                </li>)}</ul>
+              </details>}
+              {item.analysis.questions_to_confirm.length > 0 && <details><summary>Questions to confirm</summary>
+                <ul>{item.analysis.questions_to_confirm.map((question, index) => <li key={index}>{question}</li>)}</ul>
+              </details>}
+              <small>Raw email bodies and attachments are not retained. Summary expires {date(item.expires_at)}.</small>
+            </article>)}
+          </div>}
+        </div>
+      </details>}
     </section>
-    {mailboxLoaded && <section className="panel mailbox-panel"><div className="section-heading inside"><h2>Recent messages</h2><Badge>Read only</Badge></div>{messages.map(message => <article className="mail-message" key={message.id}><span className="eyebrow">{date(message.received_at)}</span><h3>{message.subject || "(No subject)"}</h3><small>{message.from}</small><p>{message.snippet}</p></article>)}{!messages.length && <Empty icon={Mail} title="No messages returned" text="No matching messages were returned by the connected provider." />}</section>}
-    {!!analyses.length && <section className="panel mailbox-panel"><div className="section-heading inside"><h2>Private email summaries</h2><Badge tone="blue">AI-assisted</Badge></div><p className="muted">These summaries use bounded matching email content. Confirm dates and required actions in the original message and official sources.</p>{analyses.map(item => <article className="mail-message mail-analysis" key={item.id}><span className="eyebrow">{date(item.received_at)} · {item.provider === "google" ? "Gmail" : "Outlook"}</span><h3>{item.subject || "(No subject)"}</h3><small>{item.from}</small><p><strong>Summary:</strong> {item.analysis.summary}</p><p><strong>Why it may matter:</strong> {item.analysis.why_relevant}</p>{!!item.analysis.action_items.length && <><h4>Possible next steps</h4><ul>{item.analysis.action_items.map((action, index) => <li key={`${item.id}-action-${index}`}>{action.text}{action.due_date ? ` · ${date(action.due_date)}` : ""}{action.needs_confirmation ? " · Confirm in the original email" : ""}</li>)}</ul></>}{!!item.analysis.dates.length && <details><summary>Dates mentioned</summary><ul>{item.analysis.dates.map((mentioned, index) => <li key={`${item.id}-date-${index}`}><strong>{mentioned.date_text}</strong> — {mentioned.meaning}<small className="mail-quote">Source wording: “{mentioned.exact_quote}”</small></li>)}</ul></details>}{!!item.analysis.questions_to_confirm.length && <details><summary>Questions to confirm</summary><ul>{item.analysis.questions_to_confirm.map((question, index) => <li key={`${item.id}-question-${index}`}>{question}</li>)}</ul></details>}<small>Raw email body and attachments were not retained. Summary expires {date(item.expires_at)}.</small></article>)}</section>}
-    <section className="panel connection-settings"><div className="section-heading inside"><h2>Read-only inbox monitoring</h2><Badge>Opt in</Badge></div>{(["google", "microsoft"] as const).map(provider => <MailboxMonitorCard key={provider} provider={provider} connection={connections.find(item => item.provider === provider)} onSessionExpired={onSessionExpired} />)}</section>
-    <section className="panel connection-settings"><ICloudCalendarCard onUpdated={onUpdated} onSessionExpired={onSessionExpired} /></section>
-    <details className="panel config-status"><summary>Service connection details</summary><pre>{JSON.stringify({ integrations, connections }, null, 2)}</pre></details>
+
+    <section className="panel connection-settings" aria-labelledby="connection-calendars-heading">
+      <div className="section-heading inside"><h2 id="connection-calendars-heading"><CalendarDays size={18} /> Calendars</h2></div>
+      <p className="muted">Connect a calendar for reminders you approve. You can also download a calendar file without connecting.</p>
+      <div className="provider-list">
+        {providers.map(provider => {
+          const connection = connections.find(item => item.provider === provider);
+          const connected = canWriteCalendar(connection);
+          const available = !!(connection?.configured || connection?.connected);
+          const label = provider === "google" ? "Google Calendar" : "Outlook Calendar";
+          return <div className="provider-row" key={provider}>
+            <span className="tile-icon small"><CalendarDays size={19} /></span>
+            <div>
+              <h3>{label}</h3>
+              {connected && <p>Disconnecting this account also removes any email access for it.</p>}
+            </div>
+            <Badge tone={connected ? "green" : "neutral"}>{connected ? "Connected" : available ? "Not connected" : "Unavailable"}</Badge>
+            <div className="provider-actions">
+              {connected
+                ? <button type="button" className="text-button" disabled={busy} aria-label={`Disconnect ${label} account`} onClick={() => void onDisconnect(provider)}>Disconnect account</button>
+                : <button type="button" className="button secondary compact" disabled={busy || !available} aria-label={`Connect ${label}`} onClick={() => void onConnect(provider, "calendar_write")}>Connect</button>}
+            </div>
+          </div>;
+        })}
+        <ICloudCalendarCard onUpdated={onUpdated} onSessionExpired={onSessionExpired} />
+      </div>
+    </section>
   </>;
 }

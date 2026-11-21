@@ -27,7 +27,7 @@ const titles: Record<Tab, [string, string]> = {
   profile: ["My Profile", "Keep your program dates and profile information up to date."],
   review: ["Policy review workspace.", "Inspect captured changes before changing an active rule."],
   audit: ["Activity log", ""],
-  connections: ["Connect on your terms.", "Choose the services you want Staytus to access."],
+  connections: ["Connections", "Manage access to your email and calendars."],
 };
 
 export default function AppShell({ account, profile, role, tab, onTab, onLogout, onRefresh, loading, toast, onDismissToast, onSessionExpired, children, assistantUnread = 0 }: {

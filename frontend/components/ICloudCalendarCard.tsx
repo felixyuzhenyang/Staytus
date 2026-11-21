@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { CalendarDays } from "lucide-react";
 import { api, ApiError } from "@/lib/api-client";
 import { Badge, ErrorNotice } from "./ui";
 
@@ -7,6 +8,7 @@ type Status = { connected: boolean; configured: boolean; account_label?: string 
 
 export default function ICloudCalendarCard({ onUpdated, onSessionExpired }: { onUpdated: () => void; onSessionExpired?: () => void }) {
   const [status, setStatus] = useState<Status | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [appleId, setAppleId] = useState("");
   const [password, setPassword] = useState("");
   const [selected, setSelected] = useState("");
@@ -29,7 +31,7 @@ export default function ICloudCalendarCard({ onUpdated, onSessionExpired }: { on
   }, []);
   async function action(kind: "link" | "select" | "disconnect") {
     const signal = life.current?.signal;
-    if (!signal || busy) return;
+    if (!signal || busy || (kind === "link" && (!status?.configured || status.connected))) return;
     setBusy(true); setError("");
     try {
       const path = kind === "link" ? "connections/icloud/link" : kind === "select" ? "connections/icloud/calendar" : "connections/icloud";
@@ -38,23 +40,39 @@ export default function ICloudCalendarCard({ onUpdated, onSessionExpired }: { on
       if (!signal.aborted) {
         if (kind === "disconnect") show(await api<Status>("connections/icloud", { signal }));
         else show(value);
-        setPassword(""); onUpdated();
+        setShowForm(false); setPassword(""); onUpdated();
       }
     } catch (value) { fail(value, signal); }
     finally { if (!signal.aborted) { setPassword(""); setBusy(false); } }
   }
-  return <div className="email-provider">
-    <div className="provider-row"><div><h3>iCloud Calendar</h3><p>{status?.connected ? status.account_label || "Apple calendar account connected" : "Connect an owned iCloud calendar using an Apple app-specific password."}</p></div><Badge tone={status?.calendar_write ? "green" : "neutral"}>{status?.calendar_write ? "Calendar ready" : status?.connected ? "Choose a calendar" : "Not connected"}</Badge></div>
+  return <div>
+    <div className="provider-row">
+      <span className="tile-icon small"><CalendarDays size={19} /></span>
+      <div><h3>iCloud Calendar</h3>{status?.connected && status.account_label && <p>{status.account_label}</p>}</div>
+      <Badge tone={status?.calendar_write ? "green" : "neutral"}>{status?.calendar_write ? "Connected" : status?.connected ? "Choose a calendar" : !status ? "Checking…" : status.configured ? "Not connected" : "Unavailable"}</Badge>
+      <div className="provider-actions">
+        {status?.connected
+          ? <button type="button" className="text-button" disabled={busy} onClick={() => void action("disconnect")}>Disconnect iCloud</button>
+          : !showForm && <button type="button" className="button secondary compact" disabled={busy || !status?.configured} aria-label="Connect iCloud Calendar" onClick={() => setShowForm(true)}>Connect</button>}
+      </div>
+    </div>
     <ErrorNotice message={error} />
-    <p className="muted">Apple's app-specific password is different from a granular Google/Microsoft OAuth grant and may allow broader iCloud access. Staytus restricts its use to Apple's calendar service, encrypts it on the server, and does not give it to the chat model. Use an independently revocable password for Staytus.</p>
-    {!status?.connected && <form onSubmit={event => { event.preventDefault(); void action("link"); }}>
+    {showForm && status?.configured && !status.connected && <form className="connection-details icloud-form" onSubmit={event => { event.preventDefault(); void action("link"); }}>
+      <p className="muted">App-specific passwords may allow broader iCloud access. Staytus encrypts this password and uses it only for Apple’s calendar service.</p>
       <div className="form-grid"><label>Apple Account email<input type="email" autoComplete="off" value={appleId} required disabled={busy} onChange={event => setAppleId(event.target.value)} /></label><label>Apple app-specific password<input type="password" autoComplete="off" value={password} required disabled={busy} placeholder="xxxx-xxxx-xxxx-xxxx" onChange={event => setPassword(event.target.value)} /></label></div>
-      <p className="scope-note">Create the app-specific password yourself at Apple Account → Sign-In and Security → App-Specific Passwords. Two-factor authentication is required. Never enter your main Apple Account password here.</p>
-      <a href="https://support.apple.com/en-us/102654" target="_blank" rel="noreferrer">Apple's official instructions</a>
-      <div className="provider-actions"><button className="button secondary compact" type="submit" disabled={busy || !status?.configured || !appleId || !password}>Connect iCloud Calendar</button></div>
-      {status && !status.configured && <p className="scope-note">Server token encryption must be configured before linking.</p>}
+      <p className="muted">Use a new, revocable app-specific password. Keep your main Apple Account password private. <a href="https://support.apple.com/en-us/102654" target="_blank" rel="noreferrer">Apple setup instructions</a></p>
+      <div className="provider-actions connection-actions">
+        <button className="button secondary compact" type="submit" disabled={busy || !appleId || !password}>Connect iCloud Calendar</button>
+        <button type="button" className="text-button" disabled={busy} onClick={() => { setShowForm(false); setAppleId(""); setPassword(""); setError(""); }}>Cancel</button>
+      </div>
     </form>}
-    {status?.connected && <><label>Calendar for approved reminders<select value={selected} disabled={busy} onChange={event => setSelected(event.target.value)}><option value="">Choose an owned writable calendar</option>{status.calendars.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div className="provider-actions"><button className="button secondary compact" disabled={busy || !selected} onClick={() => void action("select")}>Save calendar</button><button className="text-button" disabled={busy} onClick={() => void action("disconnect")}>Disconnect iCloud</button></div><p className="muted">Changing the calendar requires a fresh action preview. Disconnecting removes the local credential; revoke its app-specific password in your Apple Account to remove provider access.</p></>}
-    <small>Staytus creates a calendar event only after you review and approve it. Two-way calendar synchronization is not included.</small>
+    {status?.connected && <details className="connection-disclosure" open={!status.calendar_write}>
+      <summary>Manage iCloud Calendar</summary>
+      <div className="connection-details">
+        <label>Calendar for approved reminders<select value={selected} disabled={busy} onChange={event => setSelected(event.target.value)}><option value="">Choose an owned writable calendar</option>{status.calendars.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <div className="provider-actions connection-actions"><button className="button secondary compact" disabled={busy || !selected} onClick={() => void action("select")}>Save calendar</button></div>
+        <p className="muted">Changing calendars requires a new reminder preview. You can revoke the app-specific password in your Apple Account.</p>
+      </div>
+    </details>}
   </div>;
 }

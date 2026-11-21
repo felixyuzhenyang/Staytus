@@ -36,7 +36,7 @@ Microsoft is configured once for the deployment through the Staytus application 
 
 OAuth is a protocol, not a ready-made application registration. Each deployment needs a registered OAuth application with a client ID, server-side secret, allowed redirect URL, requested delegated scopes and test-user/consent settings.
 
-The live Connections screen reports the **exact configured callback**, missing environment variable names and configuration errors without revealing credentials. Register that callback exactly. Current production callbacks are:
+The authenticated `GET /api/v1/connections` response includes developer diagnostics under each provider's `setup` field. Register the configured callback exactly. Current production callbacks are:
 
 ```text
 https://mystaytus.vercel.app/api/backend/connections/google/callback
@@ -141,7 +141,7 @@ Calendar event transport is verified with synthetic provider responses, includin
 
 ## Separate daily read-only inbox monitoring
 
-Connections now includes **Read-only inbox monitoring** for Gmail and Outlook. After a verified mailbox read connection exists, a user may press **Check inbox now**, or separately enable **Allow a daily background inbox check** and select an IANA timezone and hour. Background reading defaults off. It is independent of sharing previews with the cloud Agent, creating drafts or sending email. No SMTP service is needed for reading and in-app notices; SMTP remains disabled in the current configuration.
+In Connections → Email, expand **Manage Gmail permissions and checks** or **Manage Outlook permissions and checks**. Once mailbox read access exists, use **Check inbox now**, or separately enable **Allow a daily background inbox check** and save an IANA timezone and hour. Background reading defaults off and is independent of preview sharing, content analysis, and draft access. Reading and in-app notices do not require SMTP.
 
 The authenticated API is `GET/PATCH /api/v1/mail-monitor/{google|microsoft}` and `POST /api/v1/mail-monitor/{provider}/check`. A PATCH contains `{enabled, timezone, check_hour}`. Manual checking can run with background monitoring off; attempts are limited to one per five minutes. The worker requires a running backend and checks only opted-in account/connection bindings. Relinking or revocation requires renewed consent. A durable lease prevents concurrent checks; a changed consent/binding discards results after the provider response.
 

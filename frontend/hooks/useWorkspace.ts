@@ -15,7 +15,6 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [integrations, setIntegrations] = useState<Record<string, unknown>>({});
   const [connections, setConnections] = useState<Connection[]>([]);
   const [mailMessages, setMailMessages] = useState<MailMessage[]>([]);
   const [mailAnalyses, setMailAnalyses] = useState<MailAnalysis[]>([]);
@@ -114,12 +113,12 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
         const result = await api<{ reviews: Review[] }>("admin/reviews", options);
         if (!controller.signal.aborted) setReviews(result.reviews);
       } else if (tab === "connections") {
-        const [integrationResult, connectionResult] = await Promise.all([api<Record<string, unknown>>("integration-status", options), api<{ providers: Connection[] }>("connections", options)]);
+        const connectionResult = await api<{ providers: Connection[] }>("connections", options);
         const analysisResults = await Promise.all(connectionResult.providers.filter(item =>
           ["google", "microsoft"].includes(item.provider) && item.content_analysis_enabled).map(item =>
             api<{ analyses: MailAnalysis[] }>(`connections/${item.provider}/analyses`, options)));
         if (!controller.signal.aborted) {
-          setIntegrations(integrationResult); setConnections(connectionResult.providers);
+          setConnections(connectionResult.providers);
           setMailAnalyses(analysisResults.flatMap(result => result.analyses));
         }
       } else if (tab === "assistant" && !requestLock.current) {
@@ -315,13 +314,17 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   async function disconnect(provider: "google" | "microsoft") {
     await action(`disconnect-${provider}`, async requestSignal => {
       await api(`connections/${provider}`, { method: "DELETE", signal: requestSignal });
-      if (!requestSignal.aborted) { setMailMessages([]); setMailAnalyses(previous => previous.filter(item => item.provider !== provider)); setMailboxLoaded(false); setRevision(value => value + 1); setToast("Email connection removed."); }
+      if (!requestSignal.aborted) { setMailMessages([]); setMailAnalyses(previous => previous.filter(item => item.provider !== provider)); setMailboxLoaded(false); setRevision(value => value + 1); setToast("Account disconnected."); }
     });
   }
   async function readMail(provider: "google" | "microsoft") {
     await action(`mail-${provider}`, async requestSignal => {
       const result = await api<{ messages: MailMessage[]; synced_at?: string }>(`connections/${provider}/messages`, { signal: requestSignal });
-      if (!requestSignal.aborted) { setMailMessages(result.messages); setMailboxLoaded(true); }
+      if (!requestSignal.aborted) {
+        setMailMessages(result.messages);
+        setMailboxLoaded(true);
+        setToast(result.messages.length ? "Check complete. Open Recent email activity to review matching messages." : "No matching messages were found.");
+      }
     });
   }
   async function setMailAgentAccess(provider: "google" | "microsoft", enabled: boolean) {
@@ -355,5 +358,5 @@ export function useWorkspace({ onSessionExpired, onProfileUpdated }: Options) {
   }
   const closeApproval = useCallback(() => setSelected(null), []);
   const closeCalendar = useCallback(() => setCalendarDeadline(null), []);
-  return { tab, setTab, dashboard, policies, sources, approvals, events, reviews, integrations, connections, mailMessages, mailAnalyses, mailboxLoaded, messages, assistantUpdates, assistantUnread, assistantHistory, hideAssistantUpdates, newChat, loadAssistantHistory, assistantPreferences, readAssistantUpdate, saveAssistantPreferences, checkAssistantUpdates, selected, calendarDeadline, createCalendar, closeCalendar, query, setQuery, error: errors[tab] || "", clearError: () => setErrors(previous => ({ ...previous, [tab]: "" })), toast, clearToast: () => setToast(""), loading, busy, refresh: () => setRevision(value => value + 1), sendChat, saveProfile, inspect, decide, remind, captureSources, connect, disconnect, readMail, setMailAgentAccess, setMailContentAnalysis, analyzeMail, closeApproval };
+  return { tab, setTab, dashboard, policies, sources, approvals, events, reviews, connections, mailMessages, mailAnalyses, mailboxLoaded, messages, assistantUpdates, assistantUnread, assistantHistory, hideAssistantUpdates, newChat, loadAssistantHistory, assistantPreferences, readAssistantUpdate, saveAssistantPreferences, checkAssistantUpdates, selected, calendarDeadline, createCalendar, closeCalendar, query, setQuery, error: errors[tab] || "", clearError: () => setErrors(previous => ({ ...previous, [tab]: "" })), toast, clearToast: () => setToast(""), loading, busy, refresh: () => setRevision(value => value + 1), sendChat, saveProfile, inspect, decide, remind, captureSources, connect, disconnect, readMail, setMailAgentAccess, setMailContentAnalysis, analyzeMail, closeApproval };
 }

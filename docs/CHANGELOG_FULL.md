@@ -1,5 +1,11 @@
 # Staytus change log
 
+## 2026-11-21 — Simplify Connections
+
+- Separated mailbox controls and calendar linking, grouped optional consent and inbox monitoring per mailbox, and folded recent mail and AI summaries into one disclosure.
+- Removed end-user integration diagnostics and collapsed the iCloud setup form until requested. Kept provider-wide disconnect behavior and existing authorization scopes.
+- Published the allowlisted frontend changes to Vercel production. Verified the updated Connections bundle on the public domain, the healthy tool gateway, and the sign-in requirement on the session endpoint.
+
 ## 2026-11-09 — Bounded adaptive planning timelines
 
 - Kept each supported workflow's server-owned safety sequence while adding scenario-specific candidate steps from deterministic record conflicts and missing-information checks. The candidates contain server-owned IDs, titles, placement, dependencies, evidence and no calendar action.
