@@ -1,8 +1,8 @@
-# IBM Cloud deployment handoff
+# Archived IBM Cloud Code Engine deployment handoff
 
-> Current active deployment: https://mystaytus.vercel.app on Vercel Hobby. See [Vercel operations](../vercel/README.md). The Code Engine access findings and steps below remain historical/alternative-platform guidance.
+> Historical record. Staytus now uses Vercel. See [Vercel operations](../../../../infra/vercel/README.md). The Code Engine findings below are retained only as an earlier deployment investigation.
 
-Supabase PostgreSQL/TLS, migration, application-archive restore and independent API/gateway cloud verification now pass. See `docs/DATABASE_AND_CONTAINERS.md`. Web/API/gateway compute remains local; no public application deployment was performed.
+The database and container work referenced in this record is described in [DATABASE_AND_CONTAINERS.md](../../../DATABASE_AND_CONTAINERS.md). Statements below reflect the project state at the time of the Code Engine investigation.
 
 ## Current account blocker (2026-11-03)
 

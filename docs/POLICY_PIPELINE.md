@@ -1,40 +1,46 @@
 # Public policy capture and retrieval
 
-`config/sources.yaml` is the runtime allowlist. `sync_source_registry()` upserts it at startup and before a refresh; it does not seed policy summaries or student accounts. `config/schools/penn.yaml` supplies Penn directory links and explicitly internal planning buffers.
+## Registered sources
 
-The capture path is:
+[config/sources.yaml](../config/sources.yaml) is the runtime allowlist. It contains 23 public pages, all enabled for scheduled capture in the checked-in configuration. Each entry records the URL, allowed hosts, authority, applicable categories, polling interval, and freshness threshold. `sync_source_registry()` loads the registry on startup and before capture.
 
-```text
-registered source -> robots check -> bounded HTTPS fetch -> normalized text/hash
-  -> immutable pending PolicyVersion -> overlapping PolicyChunks -> optional IBM embeddings
-  -> versioned source citations -> profile-relevant in-app source-change notification
-```
+| Publisher | Registered pages | Coverage |
+| --- | ---: | --- |
+| Penn International Student and Scholar Services (ISSS) | 13 | Travel and reentry, OPT and STEM OPT, program extensions, processing times, I-94, policy updates, and academic training or scholar procedures. |
+| U.S. Citizenship and Immigration Services (USCIS) | 4 | Students and exchange visitors, OPT, STEM OPT, and student employment. |
+| U.S. Department of Homeland Security, Study in the States | 2 | General F-1 information and maintaining student status. |
+| U.S. Department of State, BridgeUSA | 4 | Current J-1 participants, extensions, college and university students, and research scholars. |
 
-Capture accepts no model- or browser-provided URL. Every redirect and resolved destination must remain on registered public HTTPS hosts. Cross-origin redirects require a separate registry entry. Requests have connect/read limits, a wall-clock budget, byte limits and redirect limits. A robots disallow, explicit restriction, access block or transport failure remains visible in the fetch log; a block is not bypassed. These DNS checks are defense in depth for a fixed administrator-owned allowlist, rather than a general-purpose arbitrary-URL crawler.
+[Penn's school configuration](../config/schools/penn.yaml) links each planning workflow to relevant sources and defines internal preparation buffers. It also provides the iPenn portal link for users to follow. Private student records and university submissions require separate institutional authorization. Synthetic fixtures are labeled and excluded from product retrieval.
 
-`PolicySnapshot` records final URL, capture time, HTTP status, embedding model/dimension and index status. `SourceCapture` records each source's latest attempt, successful fetch, error, robots state, chunk count and freshness. Fresh retrieval time does not certify that a policy is legally effective. All new captures are `detected_pending_review`, never auto-activated `RuleVersion` records. Historical snapshots and reviewed evidence remain available.
+## Capture and review
 
-`search_snapshots()` is the single retrieval implementation used by the app and agent tools. It searches real chunks, returns version/capture/citation metadata, excludes fixtures in the product and applies status/school filters. `include_pending=True` allows informational raw snapshots; the default agent-tool search returns reviewed `current_effective` evidence only. Agent instructions should explicitly request pending snapshots when answering informational source questions and disclose their review status. The exact-version tool can resolve historical citations.
+1. The capture worker checks the registered URL and robots policy before making a bounded HTTPS request. Redirects and resolved destinations must satisfy the registered public-host restrictions. When access fails or is restricted, Staytus records the result and leaves it visible in **Official source checks**.
+2. The parser extracts the main page text and normalizes it for comparison. The first capture or a changed text hash creates a new `PolicyVersion` with status `detected_pending_review`. The system retains historical snapshots, splits captured text into overlapping chunks, and adds watsonx.ai embeddings when configured.
+3. `PolicySnapshot` records the source URL, capture time, HTTP status, and indexing metadata. `SourceCapture` tracks the last attempt, last successful capture, freshness, and errors. **Policy Updates** can surface a change to users whose school, status category, and preferences make it relevant.
+4. A capture or optional model classification supplies evidence for review. Before applying a rule, the reviewer checks the issuing authority, effective date, legal status, and applicability. Capture freshness describes when the page was retrieved. Rule activation is a separate step.
 
-When `WATSONX_URL`, `WATSONX_API_KEY`, `WATSONX_PROJECT_ID` and `WATSONX_EMBEDDING_MODEL` are configured, the server requests embeddings. Model/dimension are persisted; only matching vectors participate in cosine ranking. Without credentials, or on a provider failure, real source captures and keyword retrieval still work and report their mode. A later capture can add embeddings to unchanged content without replacing its citation IDs. Classification is advisory and cannot publish a rule. The HTML extractor prioritizes main/article content and excludes site navigation, global headers, footers and executable text. Ranking currently runs in process over this small corpus; database-native vector indexing and more dedicated per-site parsers remain future scaling work.
+When adding a source, record the exact page and publisher, check permitted use and robots rules, and choose a capture schedule and freshness threshold. Keep version and citation information so readers can trace guidance back to the source. Use **Official source checks** in the app for capture outcomes, which can change between runs.
 
-Authenticated endpoints:
+## Retrieval and citations
 
-- `GET /api/v1/sources`: public-source operational status, with no credentials or private student data.
-- `POST /api/v1/policies/refresh`: `{}` or `{"source_id":"penn-isss"}`; no arbitrary URL. Manual requests have account and source cooldowns, and a three-source batch bound. The response identifies errors and deferred sources.
+`search_snapshots()` is shared by the application and Agent tools. It filters results by school and status category, then combines keyword scores and cosine similarity when the stored and query embeddings match. If embeddings are unavailable, the retrieval response identifies the keyword mode. Ranking runs in the backend process. Citations include the source URL, version, capture time, and review status. Exact-version lookups support historical citations, and a later capture can add embeddings to unchanged content while retaining its citation IDs.
 
-The API lifespan can run the polling worker. The worker checks per-source intervals from YAML; notification preference `off`, visa category and school determine subscription relevance. Initial capture and unchanged content create no source-change notification. Notifications say that a source changed and awaits review; they do not claim that a student's legal deadline changed. Delivery here is in-app; OAuth email/calendar actions are separate integrations.
+The default policy tool search returns reviewed `current_effective` evidence. Informational searches can explicitly include pending snapshots, which stay labeled as awaiting review. Policy excerpts and account-owned profile data enter the assistant's context separately.
 
-From `backend/`:
+## Scheduling and maintenance
+
+The checked-in [Vercel configuration](../vercel.json) schedules a daily job for each enabled source. The production handler authenticates the scheduler and uses a PostgreSQL transaction lock to prevent concurrent execution of the same job. Local deployments can use the polling worker, which uses each source's configured interval.
+
+- `GET /api/v1/sources` returns capture, freshness, and review status to signed-in users.
+- `POST /api/v1/policies/refresh` refreshes registered sources, optionally scoped by `source_id`. The endpoint applies cooldowns and processes up to 3 sources per request.
+
+Run these maintenance commands from `backend/`:
 
 ```sh
-.venv/bin/python ../scripts/ingest_sources.py --force
-.venv/bin/python ../scripts/ingest_sources.py --source penn-isss
-.venv/bin/python ../scripts/policy_worker.py --once
+uv run python ../scripts/ingest_sources.py --source penn-isss
+uv run python ../scripts/ingest_sources.py --force
+uv run python ../scripts/policy_worker.py --once
 ```
 
-`--force` is a maintainer CLI option, not exposed by the user refresh endpoint. The capture CLI exits nonzero if any source fails, while committing successes and descriptive failures. Production should run one polling worker; the current in-process batch lock is not a distributed work queue.
-
-Live verification on 2026-11-02 01:01 UTC populated the current local `staytus-app.db`: USCIS Students and Exchange Visitors (5 chunks), DHS Study in the States (4), and DOS BridgeUSA Current Participants (2). All are genuine pending snapshots in keyword mode. The three Penn URLs returned HTTP 403; their failure states are stored and displayed. No blocked Penn page was fabricated or treated as current evidence.
-
-After improving main/article extraction, a full recapture at 01:05–01:06 UTC stored cleaner v2 baselines: USCIS (2 chunks), DHS (2), DOS (1). Earlier captures remain historical. This new normalization baseline does not establish that immigration policy changed.
+`--force` is a maintainer CLI option. Failures are recorded with successful captures, and the capture CLI returns a nonzero exit status if any source fails. See the [verification guide](VERIFICATION.md) and [full changelog](CHANGELOG_FULL.md) for checks and dated results.

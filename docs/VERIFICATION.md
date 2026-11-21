@@ -1,229 +1,47 @@
-# Current verification — November 8, 2026 (America/New_York)
+# Staytus verification
 
-## Opt-in matching email-content summaries — 2026-11-08
-
-Staytus now has a separate, default-off application consent for matching email-content analysis. OAuth mailbox read permission, Orchestrate preview access, daily monitoring and body analysis remain independent choices. Metadata is filtered before a bounded inline-body read; attachments are excluded. watsonx.ai receives at most five bounded messages as explicitly untrusted data. The backend rejects malformed or ungrounded output, requires human confirmation, and persists no raw body. Only encrypted structured summaries with bounded metadata and short date evidence are retained, scoped to the current connection/profile/model and physically deleted after90days or immediately when analysis consent is withdrawn.
-
-The daily monitor now summarizes newly detected matches only when both recurring monitoring and content analysis are enabled. It processes five at a time, leaves later messages queued, reuses its account-owned notice after a transient model failure, and never sends, deletes or marks provider messages read. Consent/binding checks are repeated before model access and under final database locks before saving or returning cached results. Relink, disconnect, profile-version changes and expired-summary cleanup have dedicated regression coverage.
-
-Current local verification passed613backend tests with3explicit skips, frontend TypeScript checking, whitespace checks and the14-operation OpenAPI/tool contract. Tests use synthetic messages, provider transports and model results, including hostile instructions, attachment exclusion, streaming-size limits, complete-JSON extraction, exact quoted-date grounding, encryption, retention, cache reuse, batching, failure recovery, cross-account denial and consent/relink races. The real owner-authorized Gmail check is recorded separately below.
-
-All14current Python tools are imported, bound and published on the existing Staytus Agent. The updated artifact passed two-principal isolated Draft and Live profile/audit checks and the full main-Agent Live two-principal check. A separate bounded main-Agent Live case called both `read_recent_official_messages` and the new `summarize_recent_official_messages` for a synthetic account without mail permissions; both denied provider access as expected, the other account was untouched and exact fixtures were cleaned. Private reports: `.local/context-mail-draft.json`, `.local/context-mail-live.json`, `.local/context-mail-product-live.json` and `.local/orchestrate-mail-permission-denial.json`.
-
-The Google mailbox owner enabled both the existing preview choice and the separate content-analysis choice in the public Connections page. The first real request proved Gmail metadata/body reads and watsonx.ai HTTP200 but rejected the model's nonconforming JSON and retained no body or summary. A bounded parser correction was released: it extracts only one complete JSON object with the required top-level key and permits one model correction only for invalid JSON, never for authentication/network/service errors. Forty-eight focused tests and the full613-test backend suite passed. The second real request returned HTTP200 after the controlled correction pass and displayed one validated private summary; raw body and attachments were not retained. The existing Outlook administrator-consent limitation is unchanged.
-
-## Searchable profile country selector — 2026-11-04
-
-Verified249unique country/region codes and labels, compatibility with the existing64-character nationality field, English/Chinese/code/alias filtering and exact-match ranking. All579backend tests passed/3opt-in PostgreSQL skips, plus TypeScript,13-tool OpenAPI and frontend production builds. No schema migration or new runtime service was required.
-
-One disposable public account completed onboarding using Chinese search, arrow navigation and Enter to choose China. Blank nationality blocked submission, and unmatched search plus Enter neither submitted nor became the saved nationality. Profile restored China, UK search selected/saved United Kingdom, and the same value returned after a full reload. Escape and outside dismissal preserved the previous selection; USA matched United States. Inspected desktop and390pxmobile screenshots with no horizontal overflow, signed out/closed the isolated browser and cleaned up the exact fictional account/owned records. Existing real-user records were not edited. Ignored screenshots: `output/playwright/country-picker-*.png`.
-
-## Container CI correction — 2026-11-04
-
-GitHub run41951227431forcommitf55943dpassed backend/frontend/PostgreSQL and both Docker builds. Only the installed-package smoke failed: its frozen25-table assertion no longer matched the27registered tables after proactive assistant persistence was added. Replaced it with `python -m app.container_checks`: required-table/config checks and actual in-memory SQLite migrations compared with the packaged ORM, with container networking disabled. It never connects to the runtime database or starts workers. Three new cases include real rejection of an unmigrated registered table and absent configuration.
-
-Both current Linux/AMD64 images built locally, and the exact network-disabled installed-package check passed with27tables,23sources and migration head0004. Full checks passed579backend tests/3opt-in PostgreSQL skips, frontend type checking and13-tool OpenAPI validation; scoped lint passed. The corrected workflow has not yet run on GitHub because this round is awaiting the user's commit-notes review. The old commit's check is still failed; rerunning it unchanged would retain the obsolete assertion.
-
-## New chat and assistant-update history — 2026-11-04
-
-576backend tests passed with3opt-in PostgreSQL skips; TypeScript,13-tool OpenAPI, scoped lint and the production build passed. New tests verify fresh IBM context, preservation of the old conversation/proactive records, empty-new-chat restoration, authenticated ownership, stable45-record pagination with tied timestamps and additive migration defaults. The current Supabase revision is `20261104_0004`; a private read-only pre-upgrade snapshot was saved and old records were compared after upgrade. This new snapshot was not restore-tested.
-
-The existing public domain now has New chat, Refresh data, permanent planning/policy shortcuts and an in-page Assistant updates history. Two disposable public accounts verified differing real IBM thread IDs, preserved old chat content and cross-account denial. Browser checks confirmed old/inline messages disappear on New chat without changing the unread count, the clean conversation persists after data refresh and full reload, saved updates remain in history, Discuss returns to the current chat, and planning forms/policy queries remain available after chatting. Mobile390px inspection found no horizontal overflow. Exact test accounts/owned records were removed and the isolated browser was closed. No real profile/mailbox/calendar write was performed. Reports/screenshots stay ignored under `.local/vercel/chat-controls-verification.json`, `new-chat-migration.json` and `output/playwright/chat-controls-*.png`.
-
-These checks validate conversation lifecycle and presentation, not answer correctness. One ordinary Orchestrate follow-up invented meeting/location/interface details in the fictional case. No action was approved/executed; broader grounding/output-quality improvements remain outstanding.
-
-## Proactive assistant messages — 2026-11-04
-
-570backend tests passed with3opt-in PostgreSQL skips, plus TypeScript,13-tool OpenAPI contract, scoped lint and the production frontend build. The22new cases cover event-driven/no-question generation, private ownership/read state, no-event/mail-only exclusions, deduplication, bounded retry/leases, changing inputs, real provider request shape, additive schema preservation, scoped manual checks and selected invalid-draft handling. The outbox tests use isolated synthetic data and provider doubles; live checks below are separate.
-
-Supabase upgraded from `20261103_0002` to additive `20261104_0003`, after a private read-only logical snapshot of the old26tables including migration metadata. Existing profile values and reminder preferences were compared before/after and preserved, and limited-runtime access plus model/schema matching passed. The new backup was not restore-tested this round.
-
-Two actual fictional users logged out before real watsonx.ai generation: there were zero active sessions and zero user chat turns. On return, each had one persisted private assistant message with3source references. Repeated processing and public manual checks produced no duplicates; cross-account read marking returned404. Earlier visual review exposed language/appointment and ungrounded interval mistakes; current-turn instructions, core-content checks, one bounded correction and explicitly flagged omission of unsupported individual suggestions were added. Corrected Chinese cases passed, but this is not a comprehensive legal-fact or answer-quality evaluation.
-
-After the final release, an actual public-cloud `/assistant-updates/check` call on an owned fictional profile generated1new LLM message with the current profile version, while the older message was marked outdated. Vercel project metadata confirmed26enabled daily definitions including `/internal/jobs/assistant` at16:00UTC; its unauthenticated endpoint returned401. This proves configuration, authorized generator reachability and controlled execution, not the first naturally elapsed daily cron run. No real mailbox/calendar write or personal profile update was performed. Private reports: `.local/vercel/proactive-verification.json`, `proactive-cloud-generation.json`, `proactive-cron-status.json` and `proactive-migration.json`. Browser read-state verification and exact test cleanup are recorded in CHANGELOG.
-
-## Guided chat planning — 2026-11-03
-
-The guided forms and real Orchestrate/RAG plan path passed548backend tests (3opt-in PostgreSQL skips), TypeScript, production build, scoped lint and the existing13-tool OpenAPI contract. The21new guided tests include scoped form grounding, temporary/profile separation, date/category validation, history restoration, account isolation, concurrent profile change and bounded invalid-output correction/rejection. The generated-text checks catch selected timing/action/source-review mistakes; they do not establish general legal correctness.
-
-The final public two-account probe passed actual Chinese F-1 travel and J-1 Academic Training plans with5retrieved references each. It checked destination-specific output, travel-record conflict signals, unchanged persistent profiles, owned history restoration, cross-account denial and one approved calendar-file export. Actual browser form submission also returned200in Orchestrate mode with5references and1calendar target, and reached the final approval preview through the calendar picker. The isolated browser was signed out/closed and exact synthetic accounts/owned records removed. No real provider calendar was written. Private reports: `.local/vercel/guided-plan-probe.json` and synthetic response files. Desktop/mobile form/result screenshots are under ignored `output/playwright/`; mobile horizontal overflow was false. These proofs remain local. Proactive LLM messages and comprehensive answer-quality/legal validation remain separate work.
-
-## Personal planning expansion — 2026-11-03
-
-The `planning_details` migration and conditional profile forms passed527backend tests (3opt-in PostgreSQL skips), frontend type checking/production build and13-tool OpenAPI validation. A live Supabase additive migration to `20261103_0002` preserved all existing profile values and kept new facts unknown; existing runtime access works. Before migration a private25-table/294-row versioned archive was copied under a read-only snapshot and compared by value.
-
-The public Vercel app passed two synthetic-account checks for profile creation, merged edits, preparation-to-submitted task changes, invalid dates, travel conflicts and J-1/OPT separation. One real IBM Orchestrate request returned the saved submitted stage with matching owned profile/action-plan tool audits. No real personal data, mailbox reads, provider writes or emails were used in this smoke; temporary records were cleaned. Edge displayed the new form under Your profile, and no real profile values were saved. Proofs are ignored under `.local/personal-planning/`; they do not enter Git. Legal-window computation, signature-validity conclusions, guided chat forms and proactive LLM messages are not claimed by these checks.
-
-## Latest SMTP selection and sender branding
-
-- User requested returning to the original SMTP key. Stopped at Brevo’s final IP-security confirmation; the user personally disabled SMTP IP blocking. The live page showed SMTP keys Deactivated. A new certificate-verified587/STARTTLS authentication using that same key returned235. API IP settings and key credentials were not changed.
-- Uploaded only the approved SMTP configuration and selected smtp in the existing Vercel Production project, then redeployed the same verified runtime source. The existing key remains only in backend `.env` and Vercel; release source/value files contain no SMTP credential copy. No database migration, domain purchase or GitHub push occurred.
-- The existing verified Brevo sender name was changed to Staytus. The user has no product mailbox, so its existing verified personal email is retained. Changing the display name does not remove the personal local part from Brevo's rewritten From address.
-- One new UI-requested test was received in the expected Gmail account in SPAM. Metadata confirmed display name Staytus and the exact application-generated SMTP Message-ID; the address still contains the personal prefix. No mailbox labels were changed. This is actual SMTP receipt, not confirmed INBOX placement.
--32targeted notification/SMTP tests passed. Runtime file hashes match the preceding release that passed500backend tests, TypeScript,13-tool OpenAPI and production build. The new Production deployment completed successfully. The daily subscription and monitoring settings remain unchanged.
-
-## Latest daily monitoring and Brevo delivery
-
-- Public source release is ready on the existing domain with Brevo HTTPS selected and the approved restricted key in Vercel Production. Transactional statistics200 and ungranted account403 verified the resource boundary. SMTP login returned525 under its existing zero-entry IP allowlist; neither IP-security switch was changed.
-- User-approved daily Google monitoring and email subscription were saved through the authenticated UI. A precisely scoped immediate background-path check of that own UI-observed connection passed, found1new matching message and retained current consent. Next check: November4at09:00NewYork; digest eligible from10:00. Assistant-preview sharing remains off. This is not a naturally elapsed cron test.
-- The account-owned fixed-content test button produced one accepted Brevo delivery. Connected Gmail metadata independently confirmed the exact subject, current timestamp and delivery header, in SPAM (not INBOX). No unrelated message was sent and no mail labels were changed. The code and UI explicitly distinguish provider acceptance from verified mailbox placement.
-- Actual cloud metadata confirmed25enabled daily jobs. Authenticated manual mail/reminder dispatch completed200; public home200, logged-out notification API401 and unauthorized cron401. Private credential-free reports: `.local/brevo/`.
-- Final code checks:500passed/3PostgreSQL-only skips, TypeScript,13-tool OpenAPI and production build passed. First natural scheduled delivery, multi-day reliability, authenticated sender-domain/inbox placement and complete policy-personalization remain pending. See `BREVO_EMAIL.md`.
-
-## Latest public-domain Google OAuth
-
-- User completed fresh incremental calendar consent. The authenticated UI shows Calendar writing enabled with Gmail Read only retained. The own connection UUID came from that user's visible Connections details. An exactly scoped operator probe verified token encryption access, matching provider-verified mailbox, calendar scope and an offline refresh credential. Actual primary Calendar events GET returned200 with only `kind: calendar#events` selected; event details were excluded and no calendar mutation occurred. `.local/oauth-production/calendar-readonly-verification.json`; screenshot `output/verification/google-calendar-connected.png`.
-- Saved the existing Web client's exact production callback, retained local callback, designated test user and only Gmail read / owned-calendar event scope declarations. Gmail and Calendar API pages display enabled. Existing local/production client identity and secret match; no key rotation or runtime deployment was needed. Google remains External/Testing, not publicly verified.
-- Actual two-synthetic-account public pre-consent probe passed exact callback, separate minimum scopes, S256 PKCE/offline request, wrong-account400, valid cancellation303 and state-replay400. Exact synthetic records cleaned. `.local/oauth-production/preauthorization-probe.json`.
-- User created their own Staytus account/profile and personally granted Gmail read access. Authenticated Connections displayed Read only; the actual manual inbox check completed and reported1new matching message. No message content was copied into verification reports or chat, and no draft/send scope was granted. Assistant sharing and daily background checks remain off. Calendar grant and read-only API verification are now complete; actual approved event creation remains untested. `.local/oauth-production/configuration-audit.json`.
-- Microsoft sign-in reached a Penn-managed Entra access-denied/UI401 page after the user completed MFA. No app/tenant/secret or administrator consent was created; user deferred Outlook. Broader developer-tenant setup and any school consent remain future work.
--50targeted connector/monitor/calendar tests passed; full481passed/3explicit PostgreSQL skips, TypeScript,13-tool OpenAPI and frontend production build passed. No calendar event or mail was sent/created in this round.
-
-## Latest public Vercel deployment
-
-- Public https://mystaytus.vercel.app is deployed and ready on the existing Hobby project. Next.js uses a server-only binding to the private API; only authenticated `/tools/*`, gateway health and secret-protected cron routes are separately exposed. Direct main API/docs404, unauthenticated tool/cron401 and foreign-origin mutation403 passed. Runtime secrets were uploaded only after explicit destination approval; owner/Writer credentials were excluded.
-- Existing Draft/Live backend connection now targets the stable public gateway. Main-Agent Live two-principal profile/audit proof passed before enabling chat, then passed again after stopping the exact local tunnel/gateway. Reports: `.local/vercel/context-cloud-live.json` and `context-cloud-without-tunnel.json`.
-- Actual public BFF registration/onboarding/dashboard for two synthetic accounts, secure cookie handling, hybrid retrieval with 10 cited results, two IBM chats with one owned profile-tool audit each, and cross-account conversation404 passed. Actual browser login/dashboard/Chinese chat added one owned audit. All exact synthetic accounts/rows were removed, private fixture passwords discarded and browser signed out. Reports: `.local/vercel/public-bff-live-smoke.json`, `public-browser-chat.json`; screenshots: `output/verification/vercel-public-dashboard.png`, `vercel-public-chat.png`.
-- Actual Vercel metadata confirmed25enabled daily jobs. Authenticated manual dispatch of policy/reminder/mail jobs returned200/completed; no real mailbox authorization or send occurred. Cloud entrypoints disable threads; this computer's three worker flags are also off. Hobby daily schedules may vary within an hour; future scheduled execution/ongoing operational reliability still needs monitoring. Reports: `.local/vercel/cloud-project-check.json`, `cloud-scheduled-job-smoke.json`, `local-services-retired.json`.
-- Final standard suite:481passed/3PostgreSQL-only skips, TypeScript,13-tool OpenAPI and production build passed. Dedicated local PostgreSQL deployment checks separately passed10tests. Public OAuth callback/API/test-user configuration and personal mailbox/calendar consent remain pending, as do identity recovery/shared rate limiting, retention and broader operational/answer-quality evaluation.
-
-## Latest Supabase hosting
-
-- Actual Free project/PostgreSQL17 in us-east-1, Data API disabled and SSL enforcement enabled. Connected via the free IPv4 Session pooler with trusted CA/hostname verification, separate owner/runtime credentials and no anonymous business-table grants. Runtime schema-create/migration-write permissions are denied. `.local/supabase/bootstrap-verification.json`.
-- Actual independent API/gateway cloud test passed two-account ownership, forged-owner denial, private-route absence and restart persistence; exact synthetic data removed. `.local/supabase/cloud-shared-database-verification.json`. Generated public registry rows were removed only after all other business tables were confirmed empty.
-- Stopped local writers and saved a private source dump. Atomic current-PostgreSQL→Supabase copy verified25tables/266rows/98totalchunks before commit. Original local PostgreSQL/SQLite retained. `.local/supabase/import-verification.json`.
-- Generated a private, versioned SQLite application archive from the cloud through verified TLS, restored it into fresh local PostgreSQL and compared every business value; temporary restore database removed. `.local/supabase/cloud-backup-restore-verification.json`. This is application-data recovery, not Supabase platform Auth/Storage backup or PITR. Embedded pg_dump lacks SSL; official Docker-client download timed out, so neither failed attempt is claimed as a cloud dump.
-- Application configuration selects the cloud runtime role. Other IBM/OAuth/signing secrets were unchanged; the expired temporary callback address was restored and the existing Draft/Live connection rebound with the same keys/roles. Fresh main-Agent Live two-principal profile/audit verification passed on Supabase; exact synthetic rows removed. `.local/supabase/context-product-live.json`.
-- Actual Next.js BFF registration→profile→IBM chat→tool gateway→Supabase round trip passed200/mode orchestrate and exactly one owned profile-tool audit. HttpOnly session-cookie flow passed; synthetic account and owned rows removed. `.local/supabase/product-bff-live-smoke.json`.
-- Final local frontend/API/gateway are all200; personalized chat is enabled and original policy/reminder/mail-monitor worker configuration is restored. Original3accounts/2profiles and98totalpolicy chunks retained. Raw handoff-password/transient backup env files removed. `.local/supabase/final-verification.json`. Workers are still lifespan threads, and the tool HTTPS edge remains temporary; this is not public compute deployment.
-- Code preparation checks:474passed on isolated local PostgreSQL; standard472passed/2PG-only skips, TypeScript,13tool OpenAPI contract and frontend production build passed. These code checks and actual cloud/Live checks are distinct evidence.
-
-## Latest actual Docker builds
-
-- Docker Desktop4.98.0/Engine29.9.2, Personal UI, local desktop-linux Docker driver. User accepted the agreement personally. Backend/frontend linux/amd64 images built and loaded successfully; no cloud builder, image push, paid service or cloud database was used.
-- Network-isolated temporary containers passed installed backend model/config/migration checks, nonroot synthetic ephemeral SQLite/API startup and nonroot frontend page startup/missing-backend503. No real records or provider credentials were supplied; containers removed, images retained. `.local/docker-build-verification.json`.
-- This closes the local image-build gap stated in the earlier preparation section below. Cloud database/TLS, registry deployment and Orchestrate Live are still separate unverified deployment steps. Budget preference is now zero-spend; free database/compute limits and existing IBM AI entitlements require review before provisioning.
-
-## Latest database/container preparation
-
-- Real PostgreSQL18.6 at loopback55432 now backs the operator configuration, shared by independent API/gateway processes with a limited runtime role.25business tables/266rows/98totalpolicy chunks with history were imported and verified. Original SQLite is unchanged; private before-cutover backup retained. Earlier87chunk statements below refer to active chunks.
-- Explicit Alembic baseline, repeated upgrade, safe legacy adoption/refusal, uninitialized API startup refusal, narrow non-destructive legacy transfer, production TLS/secret requirements and redacted CLI failure are covered. API/gateway never run DDL on startup. Migration jobs require only database configuration.
-- Runtime persistent-DDL and migration-version writes were actually denied. PostgreSQL dump restored into a fresh temporary database; full values matched and temporary database was removed. Reports: `.local/postgres/cutover-verification.json`, `.local/postgres/restore-verification.json`.
-- `scripts/verify_shared_database.py` used real independent HTTP processes and two synthetic accounts; owned tools, forged-ID rejection, private-route absence and gateway restart all passed. Exact synthetic records were cleaned. `.local/shared-database-verification.json`; no external IBM/mail/calendar calls in this proof.
-- Final dedicated PostgreSQL suite:473passed; normal `make test`:472passed/1PostgreSQL-only skip, TypeScript and OpenAPI3.0.3/all13tools passed. Each PostgreSQL fixture has an isolated schema in a test-only database. The initial test-infrastructure search_path issue was corrected before these final results.
-- Final production build and backend wheel build passed. Installed wheel loaded copied config and migrations, started against PostgreSQL; Next standalone page/assets and BFF passed. Missing production BACKEND_URL returned503. Private report `.local/container-runtime-check/verification.json`.
-- Docker/Compose sources and CI YAML are prepared. **Actual Docker image builds were not executed locally; no container engine is installed. Added CI jobs have not been pushed/run.** Managed PostgreSQL/TLS, Code Engine provisioning, stable HTTPS/Live validation and production identity/provider verification remain unverified. Local package tests are not cloud/container proof.
-
-## Earlier business expansion
-
-- Production build passed after the final frontend/CSS change. Synthetic browser QA verified the OPT checklist/missing facts and visible pending/blocked sources, disabled unlinked inbox controls and the iCloud connection form/password warning. The account was logged out and exact owned rows/transient credentials removed; `.local/business-expansion-ui-result.json` records cleanup. Screenshots are private ignored files under `output/verification/`.
-- `make test`:458backend tests passed, TypeScript passed and all13exported read/proposal operations matched the OpenAPI3.0.3 contract. This includes daily inbox consent/races, iCloud protocol/approval/deadlines, evidence-aware workflow guidance and real-page parsing regressions. Provider actions in tests remain mocked.
-- Registry:23official sources with6–24hour intervals. Actual initial capture:15successful sources,8HTTP403,87active chunks; all87now have768dimensional embeddings. Public Penn travel, deadlines, I-94 and some policy-update/planning pages captured successfully without login. Remaining403sources were not bypassed.
-- Four real Chinese/bilingual retrieval probes returned appropriate F-1 OPT/travel and J-1 student/scholar references, with pending-review flags. This is a bounded smoke check, not comprehensive legal/answer-quality validation. Private report: `.local/policy-business-expansion-verified.json`.
-- A real public USCIS employment page exposed a bare HTML `id` parser error and embedding input overflow. The parser now accepts valueless attributes. Officially supported512token truncation is applied only to the selected Granite278m embedding model; a subsequent real reindex passed, preserving full source text/citations.
-- The stopped narrow tool gateway and temporary edge were restored within the existing scope; existing Draft/Live binding was updated with unchanged credentials/roles. Fresh main-Agent Live two-account profile/audit proof and cleanup passed: `.local/context-product-live-business-expansion.json`. Product gate enabled only after reviewing that proof.
-- No real mailbox/calendar was read or written. SMTP remains off. Google project `staytus-513614` and external Testing branding exist; user-completed policy acceptance was visibly confirmed. User explicitly approved Web client `staytus-local-web`; the actual created ID/secret were saved only to mode0600 backend `.env`, with no key output or agent JSON download. Success dialog left open as requested. API enablement/test users/personal OAuth consent remain pending. Microsoft configuration remains absent.
-
-## Earlier November2 verification (historical)
-
+This document describes how to validate the current checkout. Detailed dated test records are preserved in [the archived verification history](archive/verification-history/VERIFICATION_HISTORY.md).
 
 ## Automated checks
 
-| Check | Actual result |
-| --- | --- |
-| `make test` | 401 backend tests passed, including tool/workflow verification, connector-target/profile-version approval binding, calendar providers and notification delivery controls; TypeScript passed; OpenAPI 3.0.3 validated 13 read/proposal operations; real provider credentials blanked for the fixture-based suite |
-| `npm run build` | Passed after final frontend changes, Next16.4.3 |
-| IBM runtime/chat | Existing main Staytus Agent published with 13 tools; all 13 tool interfaces covered by 4 bounded Live cases/17 tool calls, including expected mail-permission denial; fresh two-principal main-Agent Live proof passed after tunnel restoration; real Chinese browser chat called the profile tool once |
-| OAuth/security | PKCE, session/state binding, encrypted tokens, exact separate mail/calendar scopes, bounded renewal, Agent-preview permission, cross-account denial, immutable connector target and current-profile approval claims tested; provider transports mocked, not a real mailbox/calendar authorization |
-| Reminders | Worker, account-owned inbox/popup, timezone preferences, durable opt-in email outbox and SMTP transport implemented/security-tested; synthetic browser popup/settings passed; real SMTP is unconfigured and no real reminder email was sent |
-| Calendar | Synthetic browser approval/export produced a real `.ics` with `VALARM` 1440 minutes; Google/Microsoft write transports and target-binding guards tested with mocks; no real remote calendar was changed |
-| Offline readiness script | Orchestrate and independent watsonx.ai URL/project/key/models configured; OAuth app credentials absent; private local context gate enabled after matching main-Agent Live evidence |
-| SDK and context | Actual ADK2.19.1 import/serialization/mock forwarding passed;13 cloud imports/bindings verified; isolated Draft/Live and main-Agent Live two-account profile/audit proofs passed |
-| Orchestrate connection | User completed the connection wizard; Draft and Live credential-entry flags and key-value/team compatibility verified through metadata; this is not successful tool execution |
-| Narrow gateway | Authorized temporary HTTPS edge and loopback health 200, private routes 404, unauthorized tool 401; no browser/login/OAuth/final-approval interface exposed |
-| Model readiness | Real regional catalog, Granite embedding and structured chat-generation probes passed; five current chunks indexed at 768 dimensions; real Chinese hybrid retrieval returned official citations |
+Run the repository checks from the project root:
 
-The sole test warning is an upstream Starlette/httpx TestClient deprecation. Tests use isolated databases and synthetic scenarios. The old embed route is absent; its source and earlier report are archived.
+```sh
+make test
+make build
+```
 
-## Actual browser flows
+`make test` runs the backend test suite, frontend TypeScript checks and the reviewed OpenAPI 3.0 tool-contract check. `make build` produces the Next.js production bundle.
 
-- Latest synthetic QA: reminder inbox/popup appeared, preferences saved with timezone `America/New_York`, and Google Calendar displayed missing-configuration/scope information. A calendar preview was approved and its actual `.ics` included a display alarm 1440 minutes before the event. A real Chinese chat reply used Orchestrate and invoked `get_student_profile` exactly once, confirmed by the owned backend audit. The QA account was logged out and all synthetic rows/local QA credentials were removed. Evidence: `docs/evidence/reminder-inbox-synthetic.png`, `calendar-target-synthetic.png`, `chat-after-calendar-reminder-integration.png`.
-- The popup is an in-app feature that requires an open page. Native OS notifications/background push have not been implemented. Email reminders remain off by default and require configured SMTP, a verified connected target mailbox and explicit user opt-in.
+The GitHub Actions workflow adds PostgreSQL-backed tests and builds both Docker images. These checks validate code, migrations, contracts and packaging. Provider availability and external account permissions require separate integration checks.
 
-Earlier browser coverage, retained as history:
+## Integration checks
 
-- Real existing test-account login → session restoration → first-use profile onboarding → personal dashboard.
-- Profile restoration after reload; cross-origin mutations rejected; tokens redacted from browser JSON; HttpOnly/SameSite cookie; logout/reload returns to login.
-- Calendar preview → exact-content approval → `SUCCEEDED` / `file_export` receipt and actual `.ics` endpoint.
-- Chat with no IBM configuration returns503 and a visible error, without any invented assistant answer.
-- Connections describes actual missing OAuth deployment credentials; no user's mailbox was connected.
-- Second-iteration browser check: a clearly synthetic QA account completed registration/onboarding, Microsoft setup displayed the exact callback and missing client settings, and chat showed the missing-IBM error with no generated answer. Signed out after checking.
-- Policy library shows six real-source statuses, fresh federal captures and explicit Penn failures.
-- Actual Staytus Orchestrate Agent created and later updated/published on the same UUID, with the existing internal name and Staytus display name preserved. UI shows 13 tools and Live. A separate local HTTP smoke verified the Next.js cookie proxy, actual backend chat and Live tool callback using disposable synthetic accounts; no real browser user's session was replaced.
+The repository includes explicit scripts for the integrations that cannot be established by unit tests alone:
 
-## Actual Live business-tool coverage
+- `scripts/check_watsonx_connection.py` checks watsonx.ai configuration and can run bounded model probes.
+- `scripts/orchestrate_preflight.py` inspects Orchestrate deployment prerequisites without changing the tenant.
+- `scripts/verify_orchestrate_context.py` verifies signed user context and account isolation with synthetic records.
+- `scripts/verify_orchestrate_tools.py` validates the published business-tool surface with synthetic records.
+- `scripts/verify_public_deployment.py` checks the public web-to-backend flow with disposable accounts.
+- `scripts/verify_google_calendar_connection.py` performs a read-only connection check after user consent.
+- `scripts/verify_shared_database.py` checks shared PostgreSQL behavior with synthetic records.
 
-`scripts/verify_orchestrate_tools.py` completed 4 bounded model requests against the existing published main Agent, covering 13 unique tool interfaces and 17 tool invocations:
+Each script is offline or read-only by default where supported. Read its command help before selecting a live mode. Live checks may require configured provider credentials, an authorized test account and the script's explicit confirmation flag.
 
-| Case | Actual verified result |
-| --- | --- |
-| Eight read/planning/handoff tools | School metadata, cited non-fixture policy search/version status, deterministic planning dates, owned tasks/notifications, adviser handoff without sending, and action plan all matched actual backend responses/audits |
-| Proposal tools | Profile update, email and export-calendar previews produced exact owned `PROPOSED` rows without execution; an optional profile call made 4 tool calls in this case |
-| Mail permission denial | Inert synthetic provider connection plus disabled Agent-preview permission returned `tool_permission_required`; no provider credentials could be used and no real mailbox was read |
-| Second-account multistep workflow | Profile → public policy search → planning-date calculation → calendar preview ran in the reviewed order, with separate ownership and no other-account changes |
+## Verification boundaries
 
-All returned proposal IDs/content and successful tool audits matched the database; the denied mail request correctly produced no committed successful-read audit. Temporary notifications, approvals, provider placeholders, sessions, profiles and accounts were cleaned up. Report: `.local/orchestrate-business-tools-result.json`. This is actual Live integration coverage using synthetic data, not an evaluation of legal completeness or real provider permissions.
+- Successful automated tests do not prove that IBM, Google, Microsoft or Brevo is currently available.
+- Source capture records the contents and capture time of a page. It does not by itself establish that the text is current law or an approved planning rule.
+- Planning dates may include internal preparation targets. The interface identifies these separately from official filing dates.
+- Mailbox, calendar and profile actions remain subject to the signed-in user's connection, consent and approval state.
+- Use synthetic accounts for shared-environment checks and remove the exact test records afterward.
 
-After approval hardening, a separate one-request proposal-only Live check passed against the updated gateway, including its optional profile call (4 tool calls). Email/remote-calendar payloads bind a server-derived `_connector_target` inside the content hash; an absent connection is explicitly bound and cannot silently switch after a later connection. Export calendars have no remote target. The verifier checks normalized business fields, full hash, displayed target and current profile version and rejects model-forged targets. Report: `.local/orchestrate-business-proposals-bound-target.json`. The earlier full report remains historical proof of the original batch; this recheck covers the changed proposal contract.
+## Supporting documentation
 
-## Actual public-source results
-
-All six sources in the registered YAML were attempted. Cleaner v2 snapshots of USCIS Students, DHS Study in States and DOS BridgeUSA total five current main-text chunks. They are non-fixture, pending-review captures. Three Penn ISSS pages returned HTTP 403. Those errors are persisted and shown; no login/challenge bypass or synthetic replacement occurred. No captured policy auto-activated a legal rule.
-
-After the user created/downloaded `staytus-watsonx-ai`, its JSON was read without printing the key and configured server-side only. Real IBM IAM/catalog checks succeeded. Selected available `ibm/granite-embedding-278m-multilingual` and `ibm/granite-4-h-small`. Embedding/structured-generation checks passed using fixed public text. The related English/Chinese pair ranked above an unrelated sentence (0.95551 vs 0.43618); this is a tiny smoke check, not a general benchmark. Granite 4 generation now uses the documented chat endpoint; the legacy endpoint's empty response was not counted as success.
-
-Reindexing existing captures completed for three sources/five chunks with zero failures; no recrawl, personal-profile input or review/rule change occurred. A fixed Chinese query with a synthetic F-1 category returned USCIS and DHS hybrid results, both marked review_required. Current vectors are 768-dimensional; historical 11 chunks remain superseded and unembedded. Safe reports are in ignored `.local/watsonx-*.json` files.
-
-## IBM and Bob boundaries
-
-Official Cloud REST/context schemas and ADK2.19.1 source were inspected; the implemented protocol uses `/v1/orchestrate`, separate per-turn context and the thread header. Actual two-principal tenant identity propagation passed and was repeated successfully after the temporary callback was restored.
-
-Cloud UI confirms existing Runtime/Studio services in Dallas and Orchestrate in Toronto. Orchestrate's exact API URL was saved locally. Studio's signed-in home shows the course account and two existing projects. Staytus now uses the existing `watsonx Hackathon Sandbox` project, whose existing Runtime association was verified. Independent watsonx.ai authentication/inference/indexing passed as described above. Its key is not reused for Orchestrate authoring. Source/newly prepared Agent configurations enable the context switch while keeping the model allowlist empty, following the actual fixed-marker comparison described below.
-
-User approved creation of `staytus-local-runtime` / `WO User`, local-only API-key storage, and the third-party model terms/test. Real IAM/Draft inference succeeded. Runtime-key connection management initially returned403. The user subsequently created `staytus-local-authoring` / Writer; it was stored only in private backend configuration, authenticated, and used in the separately bound `staytus-authoring` SDK environment. The runtime and watsonx.ai keys were preserved.
-
-The authorized temporary Cloudflare edge exposes only the independent gateway. An earlier automatic review rejected copying Draft to Live because the then-current authorization was interpreted as Draft-only. The user later explicitly requested Live setup and completed the visible connection wizard. Fresh metadata confirms both environments have credentials entered with compatible key-value/team settings; gateway health is good. No additional access grant is inferred from those metadata flags.
-
-The actual completed synthetic model call initially encountered an incorrect thread-read prefix. Correcting the read-only URL to `/v1/orchestrate/threads/{id}/messages` recovered the existing assistant response without another inference submission. The verifier now requires actual assistant output, not user/tool echoes or `run.result`. Internal Agent `name` and UI `display_name` are checked separately.
-
-Bob Agent task attempts are recorded honestly under `bob_sessions/2026-11-01-runtime-implementation/` and `2026-11-01-healthcheck-attempt/`. Native input/screenshot state was inconsistent; no verified Bob implementation file was produced. Current runtime and readiness script are Codex work.
-
-The subsequent bounded provider-setup task and actual inconsistent UI evidence are in `bob_sessions/2026-11-01-provider-setup-attempt/`; it is also not credited as completed Bob implementation.
-
-A later actual Agent session is recorded in `bob_sessions/2026-11-01-orchestrate-toolchain/`. Corrected preflight/CLI/verifier/test edits were approved and applied, with exact Bob-applied snapshots preserved. Codex then hardened metadata/identity handling and the test harness. After Writer access was established, Codex imported all 13 business tools and confirmed their exact backend connection bindings. The isolated `StaytusContextProbe` Draft agent references only the profile tool.
-
-Earlier controlled WO User Draft attempts, including retries after Finish and dependency pinning, reached `get_student_profile` but returned `Error getting Python tool status`. Those failed attempts supplied no passing isolation proof; their temporary accounts were removed. A transient Writer diagnostic also failed, without replacing the product runtime identity. The following later corrections and passing reports supersede that failure state.
-
-A separate constant-only/no-connection diagnostic returned an actual `STAYTUS_RUNTIME_OK` tool response. Thus simple tenant Python execution works; a blanket platform-outage claim is unsupported. Further operator-only probes isolate imports/dependencies from connection/context handling. Read-only transient status GETs now retry with bounds, while uncertain inference POSTs never resubmit automatically. Safe results remain in ignored `.local/` files, without capabilities or credentials.
-
-The no-extra-dependency AgentRun diagnostic executed with the original context switch off but returned `STAYTUS_DIAGNOSTIC_CONTEXT_MISSING`. With only that switch changed to true and the model allowlist still empty, the actual tool returned `STAYTUS_RUNTIME_OK`. Source/preparation/probe/preflight checks now require enabled tool context and an empty model allowlist. The isolated profile probe was updated and its signed two-account test rerun. A separate dependency/import diagnostic stayed running for over five minutes; its cancellation endpoint returned404, so cancellation was not claimed and no result from that request was treated as passing proof.
-
-Further isolated tools verified delivery of the existing backend connection fields and an actual standard-library HTTPS GET from IBM to the approved narrow gateway. The full dependency-based profile tool still timed out after the context fix; the precise provider-side failure is not established. The thin business wrapper now uses standard-library HTTPS with both credentials, redirects disabled, bounded timeout/response size and no retries. Ten transport regressions and the actual SDK decorator/context mock passed before updating the same 13 business tools. Full owned-profile/audit proof remains separate from these diagnostics.
-
-The corrected full bridge then passed isolated Draft and published Live two-account tests. Published releases use pinned `{tool_id, version_label}` references, unlike Draft UUID strings; the verifier now accepts only the observed strict Live shape and rejects unknown/duplicate identities or invalid versions. The existing main Agent was independently read back on its original UUID, then published using matching Live probe evidence. Its own Live two-principal test also passed exact profile JSON, separate threads, one owned audit each and no cross-account audit. All temporary rows were cleaned up. Private reports: `.local/context-draft.json`, `.local/context-live.json`, `.local/context-product-live.json`.
-
-Only after the main-Agent proof was reviewed was `ORCHESTRATE_CONTEXT_VERIFIED=true` written to private mode0600 backend configuration; source defaults and example configuration remain false. The final real local application HTTP smoke returned 200 and `mode: orchestrate`, with the exact owned-profile result, a corresponding tool audit, the other synthetic account untouched and synthetic conversations/accounts cleaned up. Report: `.local/product-bff-live-smoke.json`. Runtime/authoring/watsonx.ai keys and permissions were preserved; no new credential was needed. Screenshot: `docs/evidence/orchestrate-staytus-live-13-tools.png`.
-
-During the later business-tool work, the former temporary callback returned 530 before any model call or synthetic record creation. The narrow gateway and tunnel were restored, the approved callback URL was updated in private configuration and both existing Draft/Live bindings were refreshed. No service/signing secret or IBM runtime/authoring role was changed. The context gate stayed false until a fresh main-Agent two-account Live proof passed on the new binding; `.local/context-product-live.json` now records that current proof. Public app deployment remains deferred.
-
-Google/Microsoft OAuth app credentials are still absent. The Google registration console requires the user's MFA; the Microsoft portal attempt timed out. No completed app registration, real mailbox consent, provider read/draft/calendar write or reminder email is claimed. Configuration and exact permission requirements are exposed in the application; mock/security tests cover the prepared provider paths.
-
-## Not yet validated or implemented
-
-- Real consenting Google/Microsoft OAuth, mailbox read/draft and remote calendar writes. The 13 Orchestrate interfaces are Live-tested, but mail coverage intentionally verifies denial, and calendar coverage creates previews/export files only.
-- Real SMTP delivery after operator configuration and verified-mailbox user opt-in. Worker/outbox/UI implementation is present; delivery is off by default. In-app popups require an open page; native OS/background push remains unimplemented.
-- Broader policy coverage and applicability/answer-quality evaluation beyond the small actual public corpus and fixed synthetic workflows.
-- Penn private portal reads/submissions and user-directed mail sending; Penn work is deferred. Three Penn public sources remain blocked403.
-- Public cloud deployment, PostgreSQL behavior/migrations, production SSO/verified-email reset, distributed limits, retention/deletion and operational monitoring.
-
-Earlier QA screenshots are ignored under `output/verification/2026-11-01/` and `output/verification/2026-11-01-connections/`. Non-secret screenshots of the saved Draft/Live connection and imported tool list are in `docs/evidence/`. Credential values are excluded from retained evidence. Safe credential/model/gateway checks and synthetic diagnostic reports are ignored under `.local/`. Historic prototype data remains separate in `staytus.db`; new application state is in `staytus-app.db`. The application itself remains local; only the user-approved temporary tool edge was started.
+- [Current architecture](ARCHITECTURE.md)
+- [Database and containers](DATABASE_AND_CONTAINERS.md)
+- [Orchestrate setup](ORCHESTRATE_SETUP.md)
+- [Policy pipeline](POLICY_PIPELINE.md)
+- [Email connections](EMAIL_CONNECTIONS.md)
+- [Reminders and calendars](REMINDERS_AND_CALENDARS.md)

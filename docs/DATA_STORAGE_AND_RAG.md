@@ -1,52 +1,54 @@
-# 数据库与 RAG：当前实现（2026-11-03）
+# Data Storage and RAG (2026-11-03)
 
-实际运行数据库现已迁移到 **Supabase Free 托管的 PostgreSQL17（美国东部）**。主后端与工具网关根据同一个私有 `DATABASE_URL`，通过免费的 IPv4 Session pooler、证书与主机名验证连接云端。25张业务表、266条记录、98个总政策切片已逐字段校验后提交；云端应用级备份也已恢复到新本机PostgreSQL并校验。数据库不再依赖这台电脑保存唯一副本，但网页、API、网关和后台任务仍在本机运行。见 [迁移与容器记录](DATABASE_AND_CONTAINERS.md)。
+This document describes the storage and retrieval design at the time of the Supabase migration. See the [Vercel operations guide](../infra/vercel/README.md) for the later public deployment and the [policy pipeline guide](POLICY_PIPELINE.md) for source configuration and scheduling.
 
-原本机PostgreSQL18.6（`127.0.0.1:55432`、`.local/postgres/data/`）以及原 `backend/staytus-app.db` 完整保留，作为迁移前状态和回退来源；它们不会自动与云端双向同步。新安装仍可明确选择SQLite。Supabase Data API未启用，网页不直接使用Supabase数据库密钥。
+The application database was migrated to **PostgreSQL 17 managed by Supabase Free in the US East region**. The main backend and tool gateway shared a private `DATABASE_URL` and connected through the free IPv4 Session pooler with certificate and hostname verification. The migration committed 25 application tables, 266 records, and 98 total policy chunks after field-by-field verification. We also restored the cloud application backup into a fresh local PostgreSQL database and verified the result. After the migration, the cloud database held the active data, while the web app, API, gateway, and background jobs still ran locally at that stage. See the [database migration and container guide](DATABASE_AND_CONTAINERS.md).
 
-| 内容 | 当前存储 |
+The original local PostgreSQL 18.6 instance (`127.0.0.1:55432`, `.local/postgres/data/`) and `backend/staytus-app.db` were retained as pre-migration copies and potential rollback sources. They do not sync automatically with the cloud. Fresh installations can still choose SQLite. The Supabase Data API was disabled, and database credentials stayed on the server.
+
+| Data | Where it is stored |
 | --- | --- |
-| 官方来源、检查计划 | `config/sources.yaml` 和 `policy_sources` |
-| 原文、哈希、历史版本、审核状态 | `policy_versions` |
-| 抓取时间、最终URL、成功或失败、索引状态 | `policy_snapshot_metadata`、`source_capture_state` 和抓取日志 |
-| 文本切片、所属版本、向量数组、模型名称 | `policy_chunks` |
-| 用户账户、个人日期与身份、会话 | `accounts`、`user_profiles` 等独立表，按用户校验所有权 |
-| OAuth token／iCloud 专用凭证 | `provider_connections` 内的服务器加密字段 |
-| 邮箱定期检查 | `mail_monitor_preferences`、`mail_monitor_seen`、私人提醒；仅存授权、时间、消息ID哈希及通用数量通知 |
+| Official sources and check schedules | `config/sources.yaml` and `policy_sources` |
+| Source text, hashes, previous versions, and review status | `policy_versions` |
+| Capture time, final URL, success or failure, and indexing status | `policy_snapshot_metadata`, `source_capture_state`, and capture logs |
+| Text chunks, parent versions, embedding vectors, and model names | `policy_chunks` |
+| User accounts, profile dates and status, and conversations | Separate tables such as `accounts` and `user_profiles`, with ownership checks per user |
+| OAuth tokens and iCloud app-specific credentials | Encrypted fields in `provider_connections` |
+| Scheduled mailbox checks | `mail_monitor_preferences`, `mail_monitor_seen`, and private reminders. At this stage, the monitoring workflow stored only consent, schedule settings, message ID hashes, and generic count notices. |
 
-这些表在同一个PostgreSQL数据库内，逻辑上分开；用户之间的访问仍由后端所有权校验控制。邮箱正文、附件及定期检查中的标题／摘要不进入公共政策库。人工点击检查返回的短预览仅显示在该用户页面；聊天助手读取预览另需单独授权。
+These tables are logically separate within one PostgreSQL database. Access is governed by backend ownership checks. Email bodies, attachments, and subject lines or previews from scheduled checks stay out of the public policy index. Short previews from a manual check are visible only to the user who requested it. The chat assistant needs separate permission to read those previews.
 
-## RAG 数据流
+## RAG Data Flow
 
 ```mermaid
 flowchart LR
-  S[登记的官方主题网页] --> F[定期下载、正文提取与版本比较]
-  F --> T[文本切片]
-  T --> E[watsonx.ai 计算 embedding]
-  E --> D[(共享PostgreSQL保存切片和向量)]
-  Q[用户问题的embedding] --> R[身份学校过滤、关键词与向量混合检索]
+  S["Registered official topic pages"] --> F["Scheduled fetching, text extraction, and version comparison"]
+  F --> T["Split text into chunks"]
+  T --> E["Generate embeddings with watsonx.ai"]
+  E --> D[("Shared PostgreSQL stores chunks and vectors")]
+  Q["Embedding for the user's question"] --> R["Filter by status and school, then rank by keywords and vectors"]
   D --> R
-  R --> A[相关摘录与引用交给Orchestrate回答]
+  R --> A["Send relevant excerpts and citations to Orchestrate"]
 ```
 
-向量是数字数组，计算后写回 `policy_chunks.embedding`，并保存在pgvector类型的 `vector` 字段。迁移保留了98个总切片（含历史版本；此前87为当前切片）。当前后端仍在进程中计算余弦相似度和关键词评分，没有自动改成PostgreSQL原生向量索引。可选SQLite模式的vector字段仍用JSON。模型不会因入库而被重新训练。
+The system writes the numeric embedding arrays to `policy_chunks.embedding`, using the pgvector `vector` type in PostgreSQL. The migration preserved 98 total chunks, including historical versions. The earlier count of 87 covered active chunks only. The backend computed cosine similarity and keyword scores in the application process at this stage. Moving the data to PostgreSQL did not enable a native vector index. In optional SQLite mode, embeddings use JSON. Storing embeddings does not retrain the model.
 
-公开原文用于 IBM 向量计算，必要的聊天上下文和会话线程也会经过／保存在 Orchestrate 云端。Supabase保存业务状态、原文和向量；IBM负责相应的模型／Agent服务，两者是分别配置的云服务。
+watsonx.ai processes public source text to generate embeddings. The required chat context passes through Orchestrate, which also holds the conversation threads used by the agent. Supabase stores application state, policy text, and vectors. IBM provides the model and agent services. Each service is configured separately.
 
-## 扩充与定期更新
+## Expanding and Updating the Policy Corpus
 
-本轮增加具体主题页，而非仅将原来的概览页切得更碎。来源从6增至23，覆盖 OPT、STEM、项目延期、旅行／I-94、毕业安排及 J-1 流程。初次实测15个来源成功，87个当前切片全部完成768维向量索引；8个来源仍403。快照保持待审核，没有自动激活法律规则。
+The expansion added dedicated topic pages instead of splitting the existing overview pages into smaller chunks. The source list grew from 6 to 23 and covered OPT, STEM OPT, program extensions, travel and I-94, program completion, and J-1 processes. In the first live check, 15 sources were captured and all 87 active chunks were indexed with 768-dimensional embeddings. Eight sources returned HTTP 403. New snapshots remained pending review so that a capture could not automatically activate a legal rule.
 
-后台每分钟扫描到期任务，来源按6–24小时配置检查，单批最多6个，后续批次处理其他到期来源。内容哈希变化后生成新版本、切片和更新通知；抓取时间与政策发布／生效时间分开。电脑或后端停止后，本机定时任务也停止。
+In the local setup at this stage, the background worker scanned for due jobs once a minute. Sources were configured for checks every 6 to 24 hours, with up to six processed per batch and later batches handling the rest. A content hash change triggered a new version, new chunks, and an update notice. The capture time was recorded separately from the policy's publication or effective date. Local scheduling stopped when the computer or backend stopped.
 
-Penn 公开主页在浏览器无需 PennKey，后台也已成功抓取部分主题页。剩余403明确显示，不复制浏览器登录令牌、不绕过挑战，不据此要求学生授权私人门户。iPenn 私人状态与申请提交仍未接入。
+Penn's public pages could be opened in a browser without PennKey, and the backend successfully captured some topic pages. The application displayed the remaining HTTP 403 results as errors. It did not copy browser login tokens, bypass access challenges, or treat failed captures as a reason to ask for private portal access. Private iPenn status checks and application submissions remained outside the integration.
 
-个人流程现支持按 F-1、J-1 student、J-1 scholar 展示办理清单、缺失信息、日期冲突和来源状态。尚不是完整移民资格／法定期限引擎；签证、项目文件、旅行签字和 I-94 不能互相替代。
+Personal workflows provide checklists, missing information, date conflicts, and source status for F-1 students, J-1 students, and J-1 scholars. They support preparation without determining individual eligibility or authoritative filing deadlines. A visa, a program document, a travel signature, and an I-94 serve different purposes and are not interchangeable.
 
-## 与云数据库的关系
+## Relationship to Cloud Database Hosting
 
-本项目已选择Supabase作为PostgreSQL托管商，沿用现有SQLAlchemy/Psycopg、Alembic和后端账号体系，不切换到Supabase Auth。连接Orchestrate／watsonx.ai不会自动创建该业务数据库。云端迁移、TLS、受限角色、独立API/网关共享、双账号隔离和应用级备份恢复已实测。后续要把Web/API/网关及定时任务部署到稳定云端计算环境；数据库原生向量检索索引仍未加入。
+Supabase was chosen as the PostgreSQL host. Staytus kept SQLAlchemy, Psycopg, Alembic, and its existing backend account system. Supabase Auth was not adopted. Setting up Orchestrate or watsonx.ai does not provision the application database. Live checks verified the cloud migration, TLS, the limited runtime role, shared access by the separate API and gateway processes, isolation between two accounts, and recovery from an application-level backup. Stable hosting for the web app, API, gateway, and scheduled jobs was the next step at this stage. Native database vector indexing had not been added.
 
-本地 `.env`、数据库、备份和运行报告不提交 Git。凭证字段加密不代表整个数据库和备份已加密；生产保留／删除与运维仍需完善。真实邮箱和 iCloud 操作需要相应账号授权及联调；Apple 应用专用密码不是细粒度 OAuth 权限，不可填写 Apple 主密码。
+Local `.env` files, databases, backups, and runtime reports stay out of Git. Encryption of credential fields covers those fields only. Production retention, deletion, and operational procedures still required work at this stage. Real mailbox and iCloud operations require authorization from the relevant account and separate integration checks. An Apple app-specific password is not a granular OAuth permission. Use the app-specific password and keep the primary Apple Account password private.
 
-参考：[Supabase](https://supabase.com/docs/guides/database/overview)、[IBM PostgreSQL](https://cloud.ibm.com/docs/databases-for-postgresql?topic=databases-for-postgresql-getting-started)、[Apple 应用专用密码](https://support.apple.com/en-us/102654)。
+See also [Supabase](https://supabase.com/docs/guides/database/overview), [IBM PostgreSQL](https://cloud.ibm.com/docs/databases-for-postgresql?topic=databases-for-postgresql-getting-started), and [Apple app-specific passwords](https://support.apple.com/en-us/102654).

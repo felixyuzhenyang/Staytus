@@ -44,6 +44,11 @@ bob_sessions/**
 /docs/reviews/IBM_BOB_CODE_REVIEW_2026-11-01.md
 /docs/archive/VERIFICATION_INITIAL_2026-11-01.md
 /evals/demo_scenarios.json
+
+# Superseded planning material and retired visual evidence stay local only.
+/docs/archive/planning/staytus-architecture-plan.md
+/docs/evidence/
+
 # Generated public runtime configuration; canonical YAML stays in config/.
 backend/config/
 .vercel/
