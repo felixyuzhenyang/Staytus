@@ -1,0 +1,159 @@
+# Original summaries of publicly accessible Penn ISSS guidance.
+checked_on: "2026-11-21"
+sources:
+  penn-isss:
+    url: https://global.upenn.edu/isss/
+    supporting_urls:
+      - &ds_notice https://global.upenn.edu/isss/news-articles/immigration-policy-update-federal-court-vacates-duration-of-status-d-s-final-rule/
+      - https://global.upenn.edu/isss/news-articles/federal-court-stays-august-2026-cpt-guidance/
+    summary: >-
+      Penn ISSS is the starting point for immigration advising, forms, student and
+      scholar guidance, and public announcements. Its November 16, 2026 notice
+      reports that the court vacated the fixed-admission DHS rule and that
+      Duration of Status (D/S) continues. Its separate November 17, 2026 notice
+      says that a preliminary injunction stayed the August SEVP CPT guidance
+      and covers Penn. ISSS says it can again consider eligible credit-bearing
+      training that is not required of everyone in a degree program. Penn was
+      still reviewing its procedures at publication. Consult the academic
+      school and ISSS, obtain CPT authorization on the I-20 before starting
+      employment, and follow ISSS instructions on any previously submitted request.
+  penn-travel:
+    url: https://global.upenn.edu/isss/home/immigration/travel/
+    supporting_urls: [*ds_notice]
+    summary: >-
+      For Penn-sponsored F-1 and J-1 travelers, check the passport, entry visa
+      where required, and a printed I-20 or DS-2019 with any required valid
+      travel signature. Penn's guide typically treats the F-1 endorsement as
+      valid for one year, or six months on post-completion OPT. Submit the
+      travel-signature request in iPenn if needed. J-1 scholars should check
+      whether Penn requires documented continued sponsorship or a notice of
+      absence for the trip. Contact the actual sponsor if Penn is not the
+      sponsor. On return, check the CBP I-94 classification and admit-until
+      field. For the current D/S guidance, use Penn's November 16, 2026 notice
+      over older fixed-admission preparation text.
+  penn-opt:
+    url: https://global.upenn.edu/isss/opt/
+    supporting_urls:
+      - https://global.upenn.edu/isss/pre-completion-optional-practical-training-opt-guide/
+    summary: >-
+      Penn distinguishes pre-completion OPT for qualifying work during study
+      from post-completion OPT after finishing the program. Confirm the academic
+      completion date and select the matching category. Penn's post-completion
+      path starts with the required tutorial in iPenn and an OPT I-20 request
+      to ISSS, followed by a separate Form I-765 filing with USCIS. Check the
+      applicable filing window and the date of the ISSS recommendation before
+      filing. An estimated internship or job start does not establish
+      authorization. After receipt of the EAD, use the OPT reporting e-form in
+      iPenn to report as Penn directs. In the pre-completion process, the academic
+      advisor completes part of the request. Use Penn's linked guide to check
+      work hours, remaining OPT eligibility and required documents.
+  penn-extension:
+    url: https://global.upenn.edu/isss/home/immigration/cos/extension/
+    summary: >-
+      Penn instructs F-1 and J-1 students seeking more time to complete their
+      program to submit the Program End Date Extension Request in iPenn at
+      least 30 days before the current I-20 or DS-2019 expires. Discuss an
+      eligible academic or medical reason and supporting funding evidence early.
+      The request goes to the school for approval and then ISSS for review.
+      Penn's published internal processing estimate is three to five business
+      days after receipt for final review and can increase during busy periods.
+      The process updates the program document. Visa renewal for travel is a
+      separate question. J-1 scholars should check with their hosting department.
+  penn-deadlines:
+    url: https://global.upenn.edu/isss/home/immigration/deadlines/
+    summary: >-
+      Penn's table separates the time to submit a request from the estimated
+      time ISSS takes to process a complete application. For a student
+      I-20 or DS-2019 extension, Penn lists a 30-day lead time before the
+      current end date and a three-to-five-business-day ISSS estimate. For a
+      J-1 scholar DS-2019 extension or revision, the hosting department
+      submits the request 45 days before the end date, with an estimated
+      three-week processing period. OPT I-20 timing depends on the OPT
+      category and the table lists a three-to-five-business-day school
+      estimate. USCIS processing and filing limits are separate.
+  penn-stem-opt:
+    url: https://global.upenn.edu/isss/opt-stem/
+    summary: >-
+      Penn's STEM OPT guide covers the 24-month extension for eligible students
+      already on post-completion OPT. Check the qualifying STEM degree, the
+      position's connection to the degree, and employer E-Verify participation.
+      Complete the Form I-983 training plan with the employer and request the
+      STEM recommendation I-20 in iPenn, then file a separate I-765 with USCIS.
+      Penn describes the filing window using both the current OPT end date
+      and the STEM recommendation timing. Check both on the linked guide and
+      review reporting and evaluation obligations if approved. Timing and
+      employment continuation depend on individual eligibility and timely filing.
+  penn-academic-training:
+    url: https://global.upenn.edu/isss/at/
+    summary: >-
+      Penn-sponsored J-1 students seeking Academic Training before or after
+      completion need written ISSS authorization before employment starts.
+      Prepare the employer offer letter with the work dates, duties and
+      location. File the Academic Training Request in iPenn and arrange the
+      academic advisor's statement. Penn asks applicants to submit at least
+      three weeks ahead. For post-completion requests, count back from the
+      earlier of the program end and DS-2019 expiration and confirm the
+      allowed start window. If approved, ISSS issues an authorization letter
+      and updated DS-2019. Check with the actual J-1 sponsor if it is not Penn.
+  penn-current-students:
+    url: https://global.upenn.edu/isss/home/prospective/new/students/
+    summary: >-
+      Penn's current-students guide covers full-time enrollment and academic
+      progress, SEVIS maintenance, program completion and changes, work and
+      travel for F-1 and J-1 students. Confirm the program's full-time
+      definition, speak with ISSS before a reduced load, withdrawal or leave,
+      and use official channels to report address and program changes. If
+      approaching the end date, discuss the right path for extension, a transfer,
+      or a new Penn program before acting. Penn lists different request paths
+      for an F-1 change of program and a J-1 change, for which it directs students
+      to consult their ISSS advisor.
+  penn-current-scholars:
+    url: https://global.upenn.edu/isss/home/prospective-scholars/new-scholars/current-scholars/
+    supporting_urls:
+      - https://global.upenn.edu/isss/scholar_dept/j1scholar/
+      - https://global.upenn.edu/isss/home/immigration/deadlines/
+    summary: >-
+      Penn distinguishes the J-1 visiting scholar category from J-1 student
+      internships and other scholar classifications. A J-1 visiting scholar
+      should check category-specific instructions and discuss sponsorship or
+      program changes with ISSS and the hosting department. For a Penn-sponsored
+      scholar extension, Penn's processing table has the hosting department
+      submit the DS-2019 request 45 days before the current end date. The
+      two-year home-country residence requirement can apply to some J-1
+      exchange visitors. Check personal applicability with ISSS.
+  penn-i94:
+    url: https://global.upenn.edu/isss/home/immigration/travel/i94/
+    supporting_urls: [*ds_notice]
+    summary: >-
+      Use CBP's online I-94 service to retrieve the most recent admission
+      record after entering. Check the class of admission and the admit-until
+      field. Penn's November 16, 2026 notice reports that Duration of Status
+      (D/S) continues for applicable F-1 and J-1 arrivals. If an I-94 shows a
+      specific date where D/S is expected, or has a potentially incorrect
+      class, contact ISSS promptly about correction. The older fixed-date
+      passage still visible on the Form I-94 page is superseded by the
+      November 16 notice. Links and correction instructions remain useful.
+  penn-final-rule:
+    url: https://global.upenn.edu/isss/dhs-final-rule-resource-center/
+    supporting_urls: [*ds_notice]
+    summary: >-
+      This resource center contains background on a DHS rule that would have
+      replaced Duration of Status with fixed admission periods for F-1 and
+      J-1. Its anticipated September 15, 2026 implementation date is
+      historical. Penn ISSS reported on November 16 that the rule never
+      took effect and was vacated nationwide that day. According to that
+      newer notice, D/S and Penn's existing extension procedures continue.
+      Do not derive a new four-year admission limit or a general I-539 filing
+      requirement from the old resource center. Contact ISSS about an
+      individual document or status question.
+  penn-final-rule-planning:
+    url: https://global.upenn.edu/isss/dhs-final-rule-planning-preparation/
+    supporting_urls: [*ds_notice]
+    summary: >-
+      This planning page describes anticipated scenarios under the DHS
+      fixed-admission rule. It is historical for those scenarios. Use the
+      later Penn ISSS November 16, 2026 notice, which reports that Duration of
+      Status continues and the fixed-admission rule never took effect. The
+      preparation page's general steps to keep documents current, check the
+      electronic I-94 after entry, follow ISSS updates, and discuss
+      individual concerns with an advisor remain useful.

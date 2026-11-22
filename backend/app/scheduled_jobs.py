@@ -27,15 +27,18 @@ def require_scheduler(authorization):
         raise HTTPException(401, "Scheduler authorization required")
 
 
+def job_lock_key(name):
+    return int.from_bytes(hashlib.sha256(("staytus-job:" + name).encode()).digest()[:8], "big", signed=True)
+
+
 @contextmanager
 def job_lock(name, *, database=None):
     """One connection owns a transaction lock across processes; rollback releases it."""
     database = database if database is not None else engine
     if database.dialect.name != "postgresql":
         raise HTTPException(503, "Cloud scheduled jobs require shared PostgreSQL")
-    key = int.from_bytes(hashlib.sha256(("staytus-job:" + name).encode()).digest()[:8], "big", signed=True)
     with database.connect() as connection, connection.begin():
-        acquired = connection.scalar(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": key})
+        acquired = connection.scalar(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": job_lock_key(name)})
         yield bool(acquired)
 
 

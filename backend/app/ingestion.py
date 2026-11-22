@@ -198,7 +198,10 @@ def _index_chunks(db: Session, version: PolicyVersion, embedder=None) -> tuple[i
 
 
 def store_candidate(db: Session, source: PolicySource, content: str, *, categories=None,
-                    final_url=None, embedder=None, http_status=200) -> dict:
+                    final_url=None, embedder=None, http_status=200, manual_capture=None) -> dict:
+    """Index public evidence. A manual summary has provenance but no HTTP result or change alert."""
+    if manual_capture is not None:
+        http_status = 0  # The import did not issue an HTTP request.
     digest = hashlib.sha256(content.encode()).hexdigest()
     latest = db.scalar(select(PolicyVersion).where(PolicyVersion.source_id == source.id,
         PolicyVersion.fixture.is_(False)).order_by(PolicyVersion.version.desc(), PolicyVersion.created_at.desc()).limit(1))
@@ -210,7 +213,8 @@ def store_candidate(db: Session, source: PolicySource, content: str, *, categori
             count, mode, model, dimension = _index_chunks(db, latest, embedder)
             if metadata is None:
                 metadata = PolicySnapshot(policy_version_id=latest.id, requested_url=source.url,
-                    final_url=final_url or source.url, captured_at=latest.created_at, http_status=http_status)
+                    final_url=final_url or source.url, captured_at=latest.created_at, http_status=http_status,
+                    classification=manual_capture or {})
                 db.add(metadata)
             metadata.index_status, metadata.embedding_model, metadata.embedding_dimension = mode, model, dimension
         return {"changed": False, "policy_version_id": latest.id, "version": latest.version,
@@ -229,8 +233,8 @@ def store_candidate(db: Session, source: PolicySource, content: str, *, categori
         if previous.id != version.id:
             chunk.superseded = True
     count, mode, model, dimension = _index_chunks(db, version, embedder)
-    classification = {}
-    if latest and embedder is not None and getattr(embedder.config, "generation_model", ""):
+    classification = manual_capture or {}
+    if manual_capture is None and latest and embedder is not None and getattr(embedder.config, "generation_model", ""):
         try:
             classification = embedder.classify_candidate(latest.text, content)
         except (ProviderError, ValueError, httpx.HTTPError):
@@ -238,7 +242,7 @@ def store_candidate(db: Session, source: PolicySource, content: str, *, categori
     db.add(PolicySnapshot(policy_version_id=version.id, requested_url=source.url, final_url=final_url or source.url,
         captured_at=now(), http_status=http_status, embedding_model=model, embedding_dimension=dimension,
         index_status=mode, classification=classification))
-    if latest:
+    if latest and manual_capture is None:
         try:
             school = source_entry(source.id).get("school_id")
         except ValueError:

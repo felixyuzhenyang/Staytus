@@ -145,6 +145,27 @@ def test_notifications_only_changed_content_and_relevant_subscriptions(capture_d
     assert search_snapshots(capture_db, "OPT", "F-1", include_pending=True, school="Another University") == []
 
 
+def test_manual_summary_replaces_pending_search_evidence_without_fetch_or_alert(capture_db):
+    profile(capture_db, "penn-f1")
+    source = capture_db.get(PolicySource, "penn-i94")
+    first = store_candidate(capture_db, source, "Older I-94 guidance about fixed admission dates.")
+    provenance = {"capture_method": "manual_public_source_summary", "source_checked_on": "2026-11-21"}
+    content = "Penn ISSS public summary: I-94 Duration of Status guidance."
+    imported = store_candidate(capture_db, source, content, manual_capture=provenance)
+    again = store_candidate(capture_db, source, content, manual_capture=provenance)
+    assert imported["changed"] and not again["changed"]
+    assert imported["policy_version_id"] == again["policy_version_id"]
+    snapshot = capture_db.get(PolicySnapshot, imported["policy_version_id"])
+    assert snapshot.http_status == 0 and snapshot.classification == provenance
+    assert capture_db.get(PolicyVersion, first["policy_version_id"]).text.startswith("Older")
+    results = search_snapshots(capture_db, "I-94", "F-1", include_pending=True)
+    assert [row["id"] for row in results] == [imported["policy_version_id"]]
+    assert not search_snapshots(capture_db, "I-94", "F-1")
+    assert not list(capture_db.scalars(select(FetchAttempt)))
+    assert not list(capture_db.scalars(select(Notification)))
+    assert not list(capture_db.scalars(select(RuleVersion)))
+
+
 def test_robots_restriction_prevents_page_fetch(capture_db):
     client, calls = network("Never fetched", robots="User-agent: *\nDisallow: /isss/\n")
     result = fetch_source(capture_db, capture_db.get(PolicySource, "penn-isss"), client)

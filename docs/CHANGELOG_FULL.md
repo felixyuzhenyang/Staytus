@@ -1,5 +1,11 @@
 # Staytus change log
 
+## 2026-11-21 — Backfill public Penn ISSS guidance
+
+- Reviewed all 13 registered Penn ISSS URLs and imported 12 public summaries into shared Supabase in one transaction. Eight had no non-fixture version and four superseded previous pending excerpts. The PennKey-only policy updates page remains outside the new batch. The public November 16 D/S and November 17 CPT notices are cited in the summaries that use them.
+- Recorded manual-check provenance and retained the original URLs, prior versions, and automatic HTTP 403 results. The importer leaves the evidence pending review and does not emit change alerts or activate a rule.
+- Verified all 12 summaries have 768-dimensional embeddings and independently retrieved the new I-94, STEM OPT, J-1 Academic Training, and J-1 scholar versions through the shared policy search.
+
 ## 2026-11-21 — Simplify Connections
 
 - Separated mailbox controls and calendar linking, grouped optional consent and inbox monitoring per mailbox, and folded recent mail and AI summaries into one disclosure.
