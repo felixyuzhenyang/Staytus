@@ -64,5 +64,3 @@ make build
 ## IBM Bob usage
 
 We used IBM Bob's Plan mode to compare architecture proposals and clarify how the web application, backend, and Orchestrate agent should divide responsibilities. We also used Agent mode for targeted code reviews and selected changes to the Orchestrate tool-chain and workspace interface. Proposed edits were reviewed and tested before integration.
-
-The [Bob sessions guide](bob_sessions/README.md) explains which course evidence may be included in the repository. Detailed prompts, conversations, diffs, and recordings are kept in the local `bob_sessions/` folder and excluded from Git. Only the course-required team-member consumption-summary images are intended for the tracked evidence folder.
